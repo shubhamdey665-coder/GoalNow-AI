@@ -37,6 +37,56 @@ export default function Home() {
           </Link>
         </div>
       </section>
+            <section className="mx-auto max-w-6xl px-6 pb-20">
+        <div className="grid gap-6 md:grid-cols-3">
+          {[
+            {
+              title: "AI Roadmap",
+              description:
+                "Create a goal and get a clear 7-day starter plan. Later, this will become a real AI-generated roadmap.",
+            },
+            {
+              title: "Daily Tracker",
+              description:
+                "Tick completed tasks, track progress percentage, and keep your goal organized.",
+            },
+            {
+              title: "Weekly Test",
+              description:
+                "Check your weekly consistency and understand whether your plan should become harder or easier.",
+            },
+            {
+              title: "Progress Report",
+              description:
+                "See completed tasks, pending tasks, progress percentage, feedback and next recommendation.",
+            },
+            {
+              title: "AI Mentor",
+              description:
+                "Ask goal-related questions and get mentor-style guidance for your next action.",
+            },
+            {
+              title: "Goal Management",
+              description:
+                "Create, edit, delete and manage multiple goals from one dashboard.",
+            },
+          ].map((feature) => (
+            <div
+              key={feature.title}
+              className="rounded-2xl border border-white/10 bg-white/5 p-6"
+            >
+              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-white text-xl text-black">
+                ✦
+              </div>
+
+              <h2 className="text-xl font-bold">{feature.title}</h2>
+              <p className="mt-3 text-sm leading-6 text-white/60">
+                {feature.description}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
       </main>
     </>
   );
