@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import Navbar from "@/components/Navbar";
 
 export default function NewGoalPage() {
   const [goalName, setGoalName] = useState("");
@@ -81,7 +82,9 @@ export default function NewGoalPage() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
+    <>
+      <Navbar />
+      <main className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
       <div className="mx-auto max-w-3xl">
         <Link href="/dashboard" className="text-sm text-zinc-400 hover:text-white">
           ← Back to Dashboard
@@ -234,6 +237,7 @@ export default function NewGoalPage() {
           )}
         </form>
       </div>
-    </main>
+      </main>
+    </>
   );
 }

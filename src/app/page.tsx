@@ -1,8 +1,11 @@
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-black text-white">
+    <>
+     <Navbar />
+      <main className="min-h-screen bg-black text-white">
       <section className="mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-6 text-center">
         <div className="mb-5 rounded-full border border-white/20 px-4 py-2 text-sm text-white/70">
           AI Goal Tracker + Personal Mentor
@@ -34,6 +37,7 @@ export default function Home() {
           </Link>
         </div>
       </section>
-    </main>
+      </main>
+    </>
   );
 }

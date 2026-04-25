@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import Navbar from "@/components/Navbar";
 
 type Goal = {
   id: string;
@@ -26,7 +27,9 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
+    <>
+     <Navbar />
+     <main className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -108,6 +111,7 @@ export default function DashboardPage() {
           </section>
         )}
       </div>
-    </main>
+      </main>
+    </>
   );
 }
