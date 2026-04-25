@@ -121,6 +121,12 @@ export default function GoalDetailPage() {
                 </div>
                 <div className="flex gap-3">
                   <Link
+                    href={`/goals/${goal.id}/mentor`}
+                    className="rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-sm font-semibold text-blue-300 transition hover:bg-blue-400/20"
+                  >
+                    AI Mentor
+                  </Link>
+                  <Link
                       href={`/goals/${goal.id}/edit`}
                       className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
                     >
