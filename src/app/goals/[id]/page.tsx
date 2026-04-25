@@ -119,15 +119,22 @@ export default function GoalDetailPage() {
                     <p className="text-sm text-blue-400">{goal.category}</p>
                     <h1 className="mt-2 text-4xl font-bold">{goal.name}</h1>
                 </div>
-
-                <button
-                    type="button"
-                    onClick={deleteGoal}
-                    className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-400/20"
-                >
-                    Delete Goal
-                </button>
+                <div className="flex gap-3">
+                  <Link
+                      href={`/goals/${goal.id}/edit`}
+                      className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
+                    >
+                      Edit Goal
+                  </Link>
+                  <button
+                      type="button"
+                      onClick={deleteGoal}
+                      className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-400/20"
+                  >
+                      Delete Goal
+                  </button>
                 </div>
+             </div>
           
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
