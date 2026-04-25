@@ -1,27 +1,30 @@
-import Link from "next/link";
+"use client";
 
-const goals = [
-  {
-    title: "Google SWE Preparation",
-    description: "4-year coding, DSA, web development, projects and interview plan.",
-    progress: 0,
-    href: "/goals/google-swe",
-  },
-  {
-    title: "Fat Burning",
-    description: "Workout, diet, sleep, calorie tracking and weekly body progress.",
-    progress: 0,
-    href: "/goals/fat-burning",
-  },
-  {
-    title: "English Mastery",
-    description: "Grammar, communication, vocabulary, speaking and writing practice.",
-    progress: 0,
-    href: "/goals/english-mastery",
-  },
-];
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+type Goal = {
+  id: string;
+  name: string;
+  category: string;
+  duration: string;
+  dailyTime: string;
+  currentLevel: string;
+  targetResult: string;
+  plan: string[];
+  completedTasks: number[];
+  createdAt: string;
+};
 
 export default function DashboardPage() {
+  const [goals, setGoals] = useState<Goal[]>([]);
+
+  useEffect(() => {
+    const savedGoals = localStorage.getItem("goalnow-goals");
+    const parsedGoals = savedGoals ? JSON.parse(savedGoals) : [];
+    setGoals(parsedGoals);
+  }, []);
+
   return (
     <main className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
       <div className="mx-auto max-w-6xl">
@@ -43,39 +46,67 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        <section className="mt-10 grid gap-6 md:grid-cols-3">
-          {goals.map((goal) => (
+        {goals.length === 0 ? (
+          <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
+            <h2 className="text-2xl font-bold">No goals created yet</h2>
+            <p className="mt-3 text-zinc-400">
+              Create your first goal and your AI starter plan will appear here.
+            </p>
+
             <Link
-              key={goal.title}
-              href={goal.href}
-              className="rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:-translate-y-1 hover:bg-white/10"
+              href="/goals/new"
+              className="mt-6 inline-block rounded-xl bg-white px-5 py-3 font-semibold text-black transition hover:bg-zinc-200"
             >
-              <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-white text-xl text-black">
-                ✦
-              </div>
-
-              <h2 className="text-xl font-bold">{goal.title}</h2>
-
-              <p className="mt-3 min-h-20 text-sm leading-6 text-zinc-400">
-                {goal.description}
-              </p>
-
-              <div className="mt-6">
-                <div className="mb-2 flex justify-between text-sm">
-                  <span className="text-zinc-400">Progress</span>
-                  <span>{goal.progress}%</span>
-                </div>
-
-                <div className="h-2 rounded-full bg-zinc-800">
-                  <div
-                    className="h-2 rounded-full bg-white"
-                    style={{ width: `${goal.progress}%` }}
-                  />
-                </div>
-              </div>
+              Create First Goal
             </Link>
-          ))}
-        </section>
+          </div>
+        ) : (
+          <section className="mt-10 grid gap-6 md:grid-cols-3">
+            {goals.map((goal) => {
+              const progress =
+                goal.plan.length === 0
+                  ? 0
+                  : Math.round((goal.completedTasks.length / goal.plan.length) * 100);
+
+              return (
+                <Link
+                  key={goal.id}
+                  href={`/goals/${goal.id}`}
+                  className="rounded-2xl border border-white/10 bg-white/5 p-6 transition hover:-translate-y-1 hover:bg-white/10"
+                >
+                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-white text-xl text-black">
+                    ✦
+                  </div>
+
+                  <p className="text-sm text-blue-400">{goal.category}</p>
+                  <h2 className="mt-2 text-xl font-bold">{goal.name}</h2>
+
+                  <p className="mt-3 text-sm leading-6 text-zinc-400">
+                    Duration: {goal.duration}
+                  </p>
+
+                  <p className="mt-1 text-sm leading-6 text-zinc-400">
+                    Daily time: {goal.dailyTime}
+                  </p>
+
+                  <div className="mt-6">
+                    <div className="mb-2 flex justify-between text-sm">
+                      <span className="text-zinc-400">Progress</span>
+                      <span>{progress}%</span>
+                    </div>
+
+                    <div className="h-2 rounded-full bg-zinc-800">
+                      <div
+                        className="h-2 rounded-full bg-blue-400"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </section>
+        )}
       </div>
     </main>
   );

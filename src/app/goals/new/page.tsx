@@ -18,26 +18,59 @@ export default function NewGoalPage() {
 
   function handleGeneratePlan() {
     if (!goalName || !dailyTime || !currentLevel || !targetResult) {
-      setMessage("Please fill all fields before generating your AI plan.");
-      setPlan([]);
-      setCompletedTasks([]);
-      return;
+        setMessage("Please fill all fields before generating your AI plan.");
+        setPlan([]);
+        setCompletedTasks([]);
+        return;
     }
 
     const samplePlan = [
-      `Day 1: Understand your goal "${goalName}" and prepare your study/work setup.`,
-      `Day 2: Learn or revise the most basic foundation required for ${category}.`,
-      `Day 3: Practice one small task for your goal for ${dailyTime}.`,
-      `Day 4: Revise Day 1 to Day 3 and fix weak points.`,
-      `Day 5: Complete one mini practical project or workout/task session.`,
-      `Day 6: Take a short self-test and write mistakes.`,
-      `Day 7: Weekly review, progress report, and next-week planning.`,
+        `Day 1: Understand your goal "${goalName}" and prepare your study/work setup.`,
+        `Day 2: Learn or revise the most basic foundation required for ${category}.`,
+        `Day 3: Practice one small task for your goal for ${dailyTime}.`,
+        `Day 4: Revise Day 1 to Day 3 and fix weak points.`,
+        `Day 5: Complete one mini practical project or workout/task session.`,
+        `Day 6: Take a short self-test and write mistakes.`,
+        `Day 7: Weekly review, progress report, and next-week planning.`,
     ];
+
+    const newGoal = {
+        id: Date.now().toString(),
+        name: goalName,
+        category: category,
+        duration: duration,
+        dailyTime: dailyTime,
+        currentLevel: currentLevel,
+        targetResult: targetResult,
+        plan: samplePlan,
+        completedTasks: [],
+        createdAt: new Date().toISOString(),
+    };
+
+      const existingGoals = localStorage.getItem("goalnow-goals");
+
+        const goals = existingGoals ? JSON.parse(existingGoals) : [];
+
+        const duplicateGoal = goals.find(
+          (goal: { name: string }) =>
+            goal.name.toLowerCase().trim() === goalName.toLowerCase().trim()
+        );
+
+        if (duplicateGoal) {
+          setMessage("A goal with this name already exists. Please use a different name.");
+          setPlan([]);
+          setCompletedTasks([]);
+          return;
+        }
+
+        goals.push(newGoal);
+
+        localStorage.setItem("goalnow-goals", JSON.stringify(goals));
 
     setPlan(samplePlan);
     setCompletedTasks([]);
-    setMessage(`Your 7-day starter plan for ${goalName} is ready.`);
-  }
+    setMessage(`Your 7-day starter plan for ${goalName} is saved successfully.`);
+    }
 
   function toggleTask(index: number) {
     if (completedTasks.includes(index)) {
