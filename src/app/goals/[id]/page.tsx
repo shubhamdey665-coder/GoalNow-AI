@@ -127,6 +127,12 @@ export default function GoalDetailPage() {
                     AI Mentor
                   </Link>
                   <Link
+                    href={`/goals/${goal.id}/test`}
+                    className="rounded-xl border border-green-400/30 bg-green-400/10 px-4 py-2 text-sm font-semibold text-green-300 transition hover:bg-green-400/20"
+                  >
+                    Weekly Test
+                  </Link>
+                  <Link
                       href={`/goals/${goal.id}/edit`}
                       className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
                     >
