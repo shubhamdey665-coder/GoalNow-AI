@@ -14,6 +14,7 @@ export default function NewGoalPage() {
   const [message, setMessage] = useState("");
   const [plan, setPlan] = useState<string[]>([]);
   const [completedTasks, setCompletedTasks] = useState<number[]>([]);
+  const [goalSaved, setGoalSaved] = useState(false);
   const progressPercentage =
   plan.length === 0 ? 0 : Math.round((completedTasks.length / plan.length) * 100);
 
@@ -77,12 +78,14 @@ export default function NewGoalPage() {
     setMessage("");
     setPlan([]);
     setCompletedTasks([]);
+    setGoalSaved(false);
   }
   function handleGeneratePlan() {
     if (!goalName || !dailyTime || !currentLevel || !targetResult) {
         setMessage("Please fill all fields before generating your AI plan.");
         setPlan([]);
         setCompletedTasks([]);
+        setGoalSaved(false);
         return;
     }
 
@@ -122,6 +125,7 @@ export default function NewGoalPage() {
           setMessage("A goal with this name already exists. Please use a different name.");
           setPlan([]);
           setCompletedTasks([]);
+          setGoalSaved(false);
           return;
         }
 
@@ -132,6 +136,7 @@ export default function NewGoalPage() {
     setPlan(samplePlan);
     setCompletedTasks([]);
     setMessage(`Your 7-day starter plan for ${goalName} is saved successfully.`);
+    setGoalSaved(true);
     }
 
   function toggleTask(index: number) {
@@ -336,6 +341,14 @@ export default function NewGoalPage() {
             <div className="rounded-xl border border-blue-400/30 bg-blue-400/10 p-4 text-sm text-blue-200">
               {message}
             </div>
+          )}
+          {goalSaved && (
+            <Link
+              href="/dashboard"
+              className="block rounded-xl bg-blue-500 px-5 py-3 text-center font-semibold text-white transition hover:bg-blue-600"
+            >
+              Go to Dashboard
+            </Link>
           )}
 
           {plan.length > 0 && (
