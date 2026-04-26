@@ -140,58 +140,65 @@ export default function NewGoalPage() {
           ← Back to Dashboard
         </Link>
 
-       <div className="mt-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-400">Create Goal</p>
-              <h1 className="mt-2 text-4xl font-bold">Tell AI your goal</h1>
-              <p className="mt-3 max-w-2xl text-zinc-400">
-                Fill these details. Later, AI will create your daily plan, weekly tracker,
-                tests, and progress report from this information.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => useGoalTemplate("google")}
-                className="rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-sm font-semibold text-blue-300 transition hover:bg-blue-400/20"
-              >
-                Google SWE
-              </button>
-
-              <button
-                type="button"
-                onClick={() => useGoalTemplate("fat-burning")}
-                className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/20"
-              >
-                Fat Burning
-              </button>
-
-              <button
-                type="button"
-                onClick={() => useGoalTemplate("english")}
-                className="rounded-xl border border-purple-400/30 bg-purple-400/10 px-4 py-2 text-sm font-semibold text-purple-300 transition hover:bg-purple-400/20"
-              >
-                English
-              </button>
-
-              <button
-                type="button"
-                onClick={() => useGoalTemplate("business")}
-                className="rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2 text-sm font-semibold text-yellow-300 transition hover:bg-yellow-400/20"
-              >
-                Business
-              </button>
-
-              <button
-                type="button"
-                onClick={() => useGoalTemplate("exam")}
-                className="rounded-xl border border-pink-400/30 bg-pink-400/10 px-4 py-2 text-sm font-semibold text-pink-300 transition hover:bg-pink-400/20"
-              >
-                Exam
-              </button>
-            </div>
+      <div className="mt-8 space-y-6">
+        <div>
+          <p className="text-sm font-medium text-blue-400">Create Goal</p>
+          <h1 className="mt-2 text-4xl font-bold">Tell AI your goal</h1>
+          <p className="mt-3 max-w-2xl text-zinc-400">
+            Fill these details. Later, AI will create your daily plan, weekly tracker,
+            tests, and progress report from this information.
+          </p>
         </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+          <h2 className="text-lg font-semibold text-white">Goal Templates</h2>
+          <p className="mt-2 text-sm text-zinc-400">
+            Choose a template to auto-fill the form. You can edit everything before generating the plan.
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => useGoalTemplate("google")}
+              className="rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-sm font-semibold text-blue-300 transition hover:bg-blue-400/20"
+            >
+              Google SWE
+            </button>
+
+            <button
+              type="button"
+              onClick={() => useGoalTemplate("fat-burning")}
+              className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/20"
+            >
+              Fat Burning
+            </button>
+
+            <button
+              type="button"
+              onClick={() => useGoalTemplate("english")}
+              className="rounded-xl border border-purple-400/30 bg-purple-400/10 px-4 py-2 text-sm font-semibold text-purple-300 transition hover:bg-purple-400/20"
+            >
+              English
+            </button>
+
+            <button
+              type="button"
+              onClick={() => useGoalTemplate("business")}
+              className="rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2 text-sm font-semibold text-yellow-300 transition hover:bg-yellow-400/20"
+            >
+              Business
+            </button>
+
+            <button
+              type="button"
+              onClick={() => useGoalTemplate("exam")}
+              className="rounded-xl border border-pink-400/30 bg-pink-400/10 px-4 py-2 text-sm font-semibold text-pink-300 transition hover:bg-pink-400/20"
+            >
+              Exam
+            </button>
+          </div>
+        </div>
+      </div>
         <section className="mt-8 grid gap-4 md:grid-cols-4">
           {[
             {
