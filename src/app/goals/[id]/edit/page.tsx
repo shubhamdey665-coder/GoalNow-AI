@@ -9,6 +9,7 @@ type Goal = {
   name: string;
   category: string;
   duration: string;
+  priority?: string;
   dailyTime: string;
   currentLevel: string;
   targetResult: string;
@@ -26,6 +27,7 @@ export default function EditGoalPage() {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("Career / Job");
   const [duration, setDuration] = useState("7 Days");
+  const [priority, setPriority] = useState("Medium");
   const [dailyTime, setDailyTime] = useState("");
   const [currentLevel, setCurrentLevel] = useState("");
   const [targetResult, setTargetResult] = useState("");
@@ -42,6 +44,7 @@ export default function EditGoalPage() {
       setName(foundGoal.name);
       setCategory(foundGoal.category);
       setDuration(foundGoal.duration);
+      setPriority(foundGoal.priority || "Medium");
       setDailyTime(foundGoal.dailyTime);
       setCurrentLevel(foundGoal.currentLevel);
       setTargetResult(foundGoal.targetResult);
@@ -75,6 +78,7 @@ export default function EditGoalPage() {
       name,
       category,
       duration,
+      priority,
       dailyTime,
       currentLevel,
       targetResult,
@@ -163,6 +167,18 @@ export default function EditGoalPage() {
               <option>6 Months</option>
               <option>1 Year</option>
               <option>4 Years</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium">Priority Level</label>
+            <select
+              value={priority}
+              onChange={(event) => setPriority(event.target.value)}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-blue-400"
+            >
+              <option>Low</option>
+              <option>Medium</option>
+              <option>High</option>
             </select>
           </div>
 

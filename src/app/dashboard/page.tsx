@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
+  const [selectedPriority, setSelectedPriority] = useState("All Priorities");
   const [sortBy, setSortBy] = useState("Newest First");
 
   useEffect(() => {
@@ -37,10 +38,15 @@ export default function DashboardPage() {
     goal.category.toLowerCase().includes(searchText) ||
     goal.duration.toLowerCase().includes(searchText);
 
-  const matchesCategory =
-    selectedCategory === "All Categories" || goal.category === selectedCategory;
+    const matchesCategory =
+      selectedCategory === "All Categories" || goal.category === selectedCategory;
 
-  return matchesSearch && matchesCategory;
+    const goalPriority = goal.priority || "Medium";
+
+    const matchesPriority =
+      selectedPriority === "All Priorities" || goalPriority === selectedPriority;
+
+    return matchesSearch && matchesCategory && matchesPriority;
 });
 const sortedGoals = [...filteredGoals].sort((a, b) => {
   const progressA =
@@ -133,7 +139,7 @@ function clearAllGoals() {
             )}
           </div>
         </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-5">
+          <div className="mt-8 grid gap-4 md:grid-cols-6">
           <input
             type="text"
             value={searchTerm}
@@ -156,6 +162,16 @@ function clearAllGoals() {
             <option>Custom Goal</option>
           </select>
           <select
+            value={selectedPriority}
+            onChange={(event) => setSelectedPriority(event.target.value)}
+            className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-blue-400"
+          >
+            <option>All Priorities</option>
+            <option>High</option>
+            <option>Medium</option>
+            <option>Low</option>
+          </select>
+          <select
               value={sortBy}
               onChange={(event) => setSortBy(event.target.value)}
               className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-blue-400"
@@ -172,6 +188,7 @@ function clearAllGoals() {
               onClick={() => {
                 setSearchTerm("");
                 setSelectedCategory("All Categories");
+                setSelectedPriority("All Priorities");
                 setSortBy("Newest First");
               }}
               className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
