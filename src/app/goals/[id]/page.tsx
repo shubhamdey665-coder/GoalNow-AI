@@ -9,6 +9,7 @@ type Goal = {
   name: string;
   category: string;
   duration: string;
+  priority?: string;
   dailyTime: string;
   currentLevel: string;
   targetResult: string;
@@ -286,10 +287,14 @@ export default function GoalDetailPage() {
              </div>
           
 
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <div className="mt-6 grid gap-4 md:grid-cols-4">
             <div className="rounded-xl bg-zinc-900 p-4">
               <p className="text-sm text-zinc-400">Duration</p>
               <p className="mt-1 font-semibold">{goal.duration}</p>
+            </div>
+            <div className="rounded-xl bg-zinc-900 p-4">
+              <p className="text-sm text-zinc-400">Priority</p>
+              <p className="mt-1 font-semibold">{goal.priority || "Medium"}</p>
             </div>
 
             <div className="rounded-xl bg-zinc-900 p-4">

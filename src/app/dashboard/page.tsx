@@ -9,6 +9,7 @@ type Goal = {
   name: string;
   category: string;
   duration: string;
+  priority?: string;
   dailyTime: string;
   currentLevel: string;
   targetResult: string;
@@ -263,6 +264,9 @@ function clearAllGoals() {
 
                   <p className="mt-3 text-sm leading-6 text-zinc-400">
                     Duration: {goal.duration}
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-zinc-400">
+                    Priority: {goal.priority || "Medium"}
                   </p>
 
                   <p className="mt-1 text-sm leading-6 text-zinc-400">
