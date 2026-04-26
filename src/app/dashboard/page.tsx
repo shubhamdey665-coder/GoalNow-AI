@@ -19,12 +19,22 @@ type Goal = {
 
 export default function DashboardPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const savedGoals = localStorage.getItem("goalnow-goals");
     const parsedGoals = savedGoals ? JSON.parse(savedGoals) : [];
     setGoals(parsedGoals);
   }, []);
+  const filteredGoals = goals.filter((goal) => {
+  const searchText = searchTerm.toLowerCase();
+
+  return (
+    goal.name.toLowerCase().includes(searchText) ||
+    goal.category.toLowerCase().includes(searchText) ||
+    goal.duration.toLowerCase().includes(searchText)
+  );
+});
 
   return (
     <>
@@ -48,6 +58,15 @@ export default function DashboardPage() {
             Create New Goal
           </Link>
         </div>
+          <div className="mt-8">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search goals by name, category, or duration..."
+              className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-blue-400"
+            />
+          </div>
 
         {goals.length === 0 ? (
           <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
@@ -63,9 +82,16 @@ export default function DashboardPage() {
               Create First Goal
             </Link>
           </div>
+        ) : filteredGoals.length === 0 ? (
+          <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
+            <h2 className="text-2xl font-bold">No matching goals found</h2>
+            <p className="mt-3 text-zinc-400">
+              Try searching with another goal name, category, or duration.
+            </p>
+          </div>
         ) : (
-          <section className="mt-10 grid gap-6 md:grid-cols-3">
-            {goals.map((goal) => {
+        <section className="mt-10 grid gap-6 md:grid-cols-3">
+            {filteredGoals.map((goal) => {
               const progress =
                 goal.plan.length === 0
                   ? 0
