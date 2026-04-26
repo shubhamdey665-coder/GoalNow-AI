@@ -124,11 +124,18 @@ export default function GoalDetailPage() {
       </main>
     );
   }
-
+  const totalTasks = goal.plan.length;
+  const completedTaskCount = goal.completedTasks.length;
+  const pendingTaskCount = totalTasks - completedTaskCount;
   const progressPercentage =
     goal.plan.length === 0
       ? 0
       : Math.round((goal.completedTasks.length / goal.plan.length) * 100);
+      const firstIncompleteTask = goal.plan.find(
+        (_item, index) => !goal.completedTasks.includes(index)
+      );
+
+      const todaysFocus = firstIncompleteTask || "All tasks completed. Great work!";
 
   return (
     <main className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
@@ -218,6 +225,34 @@ export default function GoalDetailPage() {
                 {goal.targetResult}
               </p>
             </div>
+          </div>
+        </section>
+        <section className="mt-8 rounded-2xl border border-blue-400/30 bg-blue-400/10 p-6">
+          <p className="text-sm font-medium text-blue-300">Today&apos;s Focus</p>
+          <h2 className="mt-2 text-2xl font-bold text-white">{todaysFocus}</h2>
+          <p className="mt-3 text-sm text-blue-100/80">
+            Complete this task first. After ticking it, your next incomplete task will become the new focus.
+          </p>
+        </section>
+        <section className="mt-8 grid gap-4 md:grid-cols-4">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <p className="text-sm text-zinc-400">Total Tasks</p>
+            <p className="mt-2 text-3xl font-bold">{totalTasks}</p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <p className="text-sm text-zinc-400">Completed</p>
+            <p className="mt-2 text-3xl font-bold">{completedTaskCount}</p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <p className="text-sm text-zinc-400">Pending</p>
+            <p className="mt-2 text-3xl font-bold">{pendingTaskCount}</p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+            <p className="text-sm text-zinc-400">Progress</p>
+            <p className="mt-2 text-3xl font-bold">{progressPercentage}%</p>
           </div>
         </section>
 
