@@ -92,6 +92,26 @@ export default function GoalDetailPage() {
 
       alert("Goal summary copied to clipboard.");
     }
+    function markAllComplete() {
+      if (!goal) return;
+
+      const allTaskIndexes = goal.plan.map((_item, index) => index);
+
+      const updatedGoal = {
+        ...goal,
+        completedTasks: allTaskIndexes,
+      };
+
+      const savedGoals = localStorage.getItem("goalnow-goals");
+      const goals: Goal[] = savedGoals ? JSON.parse(savedGoals) : [];
+
+      const updatedGoals = goals.map((item) =>
+        item.id === goal.id ? updatedGoal : item
+      );
+
+      localStorage.setItem("goalnow-goals", JSON.stringify(updatedGoals));
+      setGoal(updatedGoal);
+    }
   function resetProgress() {
     if (!goal) return;
 
@@ -210,6 +230,13 @@ export default function GoalDetailPage() {
                     className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-400/20"
                   >
                     Export Summary
+                  </button>
+                  <button
+                    type="button"
+                    onClick={markAllComplete}
+                    className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/20"
+                  >
+                    Mark All Complete
                   </button>
                   <button
                     type="button"
