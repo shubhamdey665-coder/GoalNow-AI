@@ -155,7 +155,7 @@ export default function GoalDetailPage() {
              </div>
           
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
             <div className="rounded-xl bg-zinc-900 p-4">
               <p className="text-sm text-zinc-400">Duration</p>
               <p className="mt-1 font-semibold">{goal.duration}</p>
@@ -164,6 +164,12 @@ export default function GoalDetailPage() {
             <div className="rounded-xl bg-zinc-900 p-4">
               <p className="text-sm text-zinc-400">Daily Time</p>
               <p className="mt-1 font-semibold">{goal.dailyTime}</p>
+            </div>
+            <div className="rounded-xl bg-zinc-900 p-4">
+              <p className="text-sm text-zinc-400">Created Date</p>
+              <p className="mt-1 font-semibold">
+                {new Date(goal.createdAt).toLocaleDateString()}
+              </p>
             </div>
           </div>
 

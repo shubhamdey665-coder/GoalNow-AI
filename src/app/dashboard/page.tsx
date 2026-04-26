@@ -223,8 +223,11 @@ const inProgressGoals = goals.filter((goal) => {
                   <p className="mt-1 text-sm leading-6 text-zinc-400">
                     Daily time: {goal.dailyTime}
                   </p>
+                  <p className="mt-1 text-sm leading-6 text-zinc-500">
+                    Created: {new Date(goal.createdAt).toLocaleDateString()}
+                  </p>
 
-                  <div className="mt-6">
+                      <div className="mt-6">
                     <div className="mb-2 flex justify-between text-sm">
                       <span className="text-zinc-400">Progress</span>
                       <span>{progress}%</span>
