@@ -67,6 +67,17 @@ export default function NewGoalPage() {
   setPlan([]);
   setCompletedTasks([]);
 }
+  function resetForm() {
+    setGoalName("");
+    setCategory("Career / Job");
+    setDuration("7 Days");
+    setDailyTime("");
+    setCurrentLevel("");
+    setTargetResult("");
+    setMessage("");
+    setPlan([]);
+    setCompletedTasks([]);
+  }
   function handleGeneratePlan() {
     if (!goalName || !dailyTime || !currentLevel || !targetResult) {
         setMessage("Please fill all fields before generating your AI plan.");
@@ -303,13 +314,23 @@ export default function NewGoalPage() {
             />
           </div>
 
-          <button
-            type="button"
-            onClick={handleGeneratePlan}
-            className="w-full rounded-xl bg-white px-5 py-3 font-semibold text-black transition hover:bg-zinc-200"
-          >
-            Generate AI Plan
-          </button>
+          <div className="grid gap-3 md:grid-cols-2">
+            <button
+              type="button"
+              onClick={handleGeneratePlan}
+              className="rounded-xl bg-white px-5 py-3 font-semibold text-black transition hover:bg-zinc-200"
+            >
+              Generate AI Plan
+            </button>
+
+            <button
+              type="button"
+              onClick={resetForm}
+              className="rounded-xl border border-white/10 bg-white/10 px-5 py-3 font-semibold text-white transition hover:bg-white/20"
+            >
+              Reset Form
+            </button>
+          </div>
 
           {message && (
             <div className="rounded-xl border border-blue-400/30 bg-blue-400/10 p-4 text-sm text-blue-200">
