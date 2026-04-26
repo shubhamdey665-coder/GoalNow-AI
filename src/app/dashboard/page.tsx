@@ -175,19 +175,39 @@ const inProgressGoals = goals.filter((goal) => {
             </div>
         </div>
         {goals.length === 0 ? (
-          <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
-            <h2 className="text-2xl font-bold">No goals created yet</h2>
-            <p className="mt-3 text-zinc-400">
-              Create your first goal and your AI starter plan will appear here.
+          <div className="mt-10 rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-2xl text-black">
+              ✦
+            </div>
+
+            <h2 className="mt-6 text-3xl font-bold">No goals created yet</h2>
+
+            <p className="mx-auto mt-3 max-w-xl text-zinc-400">
+              Create your first AI-powered goal tracker. You can build plans for Google
+              job preparation, fat burning, English mastery, exam preparation, business
+              growth, or any custom goal.
             </p>
+
+            <div className="mt-6 flex flex-wrap justify-center gap-3 text-sm text-zinc-300">
+              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2">
+                Google SWE Prep
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2">
+                Fat Burning
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2">
+                English Mastery
+              </span>
+            </div>
 
             <Link
               href="/goals/new"
-              className="mt-6 inline-block rounded-xl bg-white px-5 py-3 font-semibold text-black transition hover:bg-zinc-200"
+              className="mt-8 inline-block rounded-xl bg-white px-6 py-3 font-semibold text-black transition hover:bg-zinc-200"
             >
               Create First Goal
             </Link>
           </div>
+        
         ) : filteredGoals.length === 0 ? (
           <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
             <h2 className="text-2xl font-bold">No matching goals found</h2>
