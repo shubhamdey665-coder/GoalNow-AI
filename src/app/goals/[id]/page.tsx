@@ -194,7 +194,19 @@ export default function GoalDetailPage() {
           } else {
             motivationQuote = "Start small. Even one completed task today is progress.";
           }
+      let goalHealthStatus = "";
+      let goalHealthClass = "";
 
+      if (progressPercentage >= 80) {
+        goalHealthStatus = "Excellent";
+        goalHealthClass = "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
+      } else if (progressPercentage >= 40) {
+        goalHealthStatus = "On Track";
+        goalHealthClass = "border-blue-400/30 bg-blue-400/10 text-blue-300";
+      } else {
+        goalHealthStatus = "Needs Focus";
+        goalHealthClass = "border-yellow-400/30 bg-yellow-400/10 text-yellow-300";
+      }
   return (
     <main className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
       <div className="mx-auto max-w-4xl">
@@ -205,8 +217,17 @@ export default function GoalDetailPage() {
         <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-6">
             <div className="flex items-start justify-between gap-4">
                 <div>
+                  <div className="flex flex-wrap items-center gap-3">
                     <p className="text-sm text-blue-400">{goal.category}</p>
-                    <h1 className="mt-2 text-4xl font-bold">{goal.name}</h1>
+
+                    <span
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${goalHealthClass}`}
+                    >
+                      {goalHealthStatus}
+                    </span>
+                  </div>
+
+                  <h1 className="mt-2 text-4xl font-bold">{goal.name}</h1>
                 </div>
                 <div className="flex gap-3">
                   <Link
