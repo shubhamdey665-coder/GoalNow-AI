@@ -215,7 +215,7 @@ export default function GoalDetailPage() {
         </Link>
 
         <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-6">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-3">
                     <p className="text-sm text-blue-400">{goal.category}</p>
@@ -229,56 +229,56 @@ export default function GoalDetailPage() {
 
                   <h1 className="mt-2 text-4xl font-bold">{goal.name}</h1>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                   <Link
                     href={`/goals/${goal.id}/mentor`}
-                    className="rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-sm font-semibold text-blue-300 transition hover:bg-blue-400/20"
+                    className="inline-flex items-center justify-center rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-sm font-semibold text-blue-300 transition hover:bg-blue-400/20"
                   >
                     AI Mentor
                   </Link>
                   <Link
                     href={`/goals/${goal.id}/report`}
-                    className="rounded-xl border border-purple-400/30 bg-purple-400/10 px-4 py-2 text-sm font-semibold text-purple-300 transition hover:bg-purple-400/20"
+                    className="inline-flex items-center justify-center rounded-xl border border-purple-400/30 bg-purple-400/10 px-4 py-2 text-sm font-semibold text-purple-300 transition hover:bg-purple-400/20"
                   >
                     Report
                   </Link>
                   <Link
                     href={`/goals/${goal.id}/test`}
-                    className="rounded-xl border border-green-400/30 bg-green-400/10 px-4 py-2 text-sm font-semibold text-green-300 transition hover:bg-green-400/20"
+                    className="inline-flex items-center justify-center rounded-xl border border-green-400/30 bg-green-400/10 px-4 py-2 text-sm font-semibold text-green-300 transition hover:bg-green-400/20"
                   >
                     Weekly Test
                   </Link>
                   <Link
                       href={`/goals/${goal.id}/edit`}
-                      className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
+                      className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
                     >
                       Edit Goal
                   </Link>
                   <button
                     type="button"
                     onClick={exportGoalSummary}
-                    className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-400/20"
+                    className="inline-flex items-center justify-center rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-400/20"
                   >
                     Export Summary
                   </button>
                   <button
                     type="button"
                     onClick={markAllComplete}
-                    className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/20"
+                    className="inline-flex items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/20"
                   >
                     Mark All Complete
                   </button>
                   <button
                     type="button"
                     onClick={resetProgress}
-                    className="rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2 text-sm font-semibold text-yellow-300 transition hover:bg-yellow-400/20"
+                    className="inline-flex items-center justify-center rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2 text-sm font-semibold text-yellow-300 transition hover:bg-yellow-400/20"
                   >
                     Reset Progress
                   </button>
                   <button
                       type="button"
                       onClick={deleteGoal}
-                      className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-400/20"
+                      className="inline-flex items-center justify-center rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-400/20"
                   >
                       Delete Goal
                   </button>
