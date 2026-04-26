@@ -20,22 +20,37 @@ type Goal = {
 export default function DashboardPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All Categories");
 
   useEffect(() => {
     const savedGoals = localStorage.getItem("goalnow-goals");
     const parsedGoals = savedGoals ? JSON.parse(savedGoals) : [];
     setGoals(parsedGoals);
   }, []);
-  const filteredGoals = goals.filter((goal) => {
+ const filteredGoals = goals.filter((goal) => {
   const searchText = searchTerm.toLowerCase();
 
-  return (
+  const matchesSearch =
     goal.name.toLowerCase().includes(searchText) ||
     goal.category.toLowerCase().includes(searchText) ||
-    goal.duration.toLowerCase().includes(searchText)
-  );
+    goal.duration.toLowerCase().includes(searchText);
+
+  const matchesCategory =
+    selectedCategory === "All Categories" || goal.category === selectedCategory;
+
+  return matchesSearch && matchesCategory;
+});
+const completedGoals = goals.filter((goal) => {
+  if (goal.plan.length === 0) return false;
+
+  return goal.completedTasks.length === goal.plan.length;
 });
 
+const inProgressGoals = goals.filter((goal) => {
+  if (goal.plan.length === 0) return false;
+
+  return goal.completedTasks.length < goal.plan.length;
+});
   return (
     <>
      <Navbar />
@@ -58,16 +73,50 @@ export default function DashboardPage() {
             Create New Goal
           </Link>
         </div>
-          <div className="mt-8">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search goals by name, category, or duration..."
-              className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-blue-400"
-            />
-          </div>
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search goals by name, category, or duration..."
+            className="md:col-span-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-blue-400"
+          />
 
+          <select
+            value={selectedCategory}
+            onChange={(event) => setSelectedCategory(event.target.value)}
+            className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-blue-400"
+          >
+            <option>All Categories</option>
+            <option>Career / Job</option>
+            <option>Fitness / Fat Burning</option>
+            <option>Education / Exam</option>
+            <option>English / Communication</option>
+            <option>Business / Money</option>
+            <option>Custom Goal</option>
+          </select>
+        </div>
+        <div className="mt-6 grid gap-4 md:grid-cols-4">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <p className="text-sm text-zinc-400">Total Goals</p>
+              <p className="mt-2 text-3xl font-bold">{goals.length}</p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <p className="text-sm text-zinc-400">Visible Goals</p>
+              <p className="mt-2 text-3xl font-bold">{filteredGoals.length}</p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <p className="text-sm text-zinc-400">Completed</p>
+              <p className="mt-2 text-3xl font-bold">{completedGoals.length}</p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <p className="text-sm text-zinc-400">In Progress</p>
+              <p className="mt-2 text-3xl font-bold">{inProgressGoals.length}</p>
+            </div>
+        </div>
         {goals.length === 0 ? (
           <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
             <h2 className="text-2xl font-bold">No goals created yet</h2>
