@@ -17,17 +17,56 @@ export default function NewGoalPage() {
   const progressPercentage =
   plan.length === 0 ? 0 : Math.round((completedTasks.length / plan.length) * 100);
 
-  function useSampleGoal() {
-    setGoalName("Google SWE Preparation");
-    setCategory("Career / Job");
-    setDuration("7 Days");
-    setDailyTime("4 hours daily");
-    setCurrentLevel("I know basic HTML, CSS, and Python. I am weak in DSA.");
-    setTargetResult("I want to become job-ready for a Google SWE role.");
-    setMessage("Sample goal filled. You can edit it or generate the plan.");
-    setPlan([]);
-    setCompletedTasks([]);
+  function useGoalTemplate(templateName: string) {
+    if (templateName === "google") {
+      setGoalName("Google SWE Preparation");
+      setCategory("Career / Job");
+      setDuration("7 Days");
+      setDailyTime("4 hours daily");
+      setCurrentLevel("I know basic HTML, CSS, and Python. I am weak in DSA.");
+      setTargetResult("I want to become job-ready for a Google SWE role.");
     }
+
+    if (templateName === "fat-burning") {
+      setGoalName("Fat Burning");
+      setCategory("Fitness / Fat Burning");
+      setDuration("7 Days");
+      setDailyTime("1 hour daily");
+      setCurrentLevel("I am a beginner and want to improve my fitness routine.");
+      setTargetResult("I want to lose fat safely and build a consistent healthy routine.");
+    }
+
+    if (templateName === "english") {
+      setGoalName("English Mastery");
+      setCategory("English / Communication");
+      setDuration("7 Days");
+      setDailyTime("30 minutes daily");
+      setCurrentLevel("I know basic English but I want to improve grammar and speaking.");
+      setTargetResult("I want to speak English confidently and improve communication.");
+    }
+
+    if (templateName === "business") {
+      setGoalName("Business Growth");
+      setCategory("Business / Money");
+      setDuration("7 Days");
+      setDailyTime("1 hour daily");
+      setCurrentLevel("I have a small business idea and want to plan growth steps.");
+      setTargetResult("I want to improve sales, planning, and daily business execution.");
+    }
+
+    if (templateName === "exam") {
+      setGoalName("Exam Preparation");
+      setCategory("Education / Exam");
+      setDuration("7 Days");
+      setDailyTime("3 hours daily");
+      setCurrentLevel("I have basic knowledge but need a structured revision plan.");
+      setTargetResult("I want to prepare consistently and score better in my exam.");
+    }
+
+  setMessage("Template filled. You can edit it or generate the plan.");
+  setPlan([]);
+  setCompletedTasks([]);
+}
   function handleGeneratePlan() {
     if (!goalName || !dailyTime || !currentLevel || !targetResult) {
         setMessage("Please fill all fields before generating your AI plan.");
@@ -111,13 +150,47 @@ export default function NewGoalPage() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={useSampleGoal}
-              className="rounded-xl border border-blue-400/30 bg-blue-400/10 px-5 py-3 font-semibold text-blue-300 transition hover:bg-blue-400/20"
-            >
-              Use Sample Goal
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => useGoalTemplate("google")}
+                className="rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-sm font-semibold text-blue-300 transition hover:bg-blue-400/20"
+              >
+                Google SWE
+              </button>
+
+              <button
+                type="button"
+                onClick={() => useGoalTemplate("fat-burning")}
+                className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/20"
+              >
+                Fat Burning
+              </button>
+
+              <button
+                type="button"
+                onClick={() => useGoalTemplate("english")}
+                className="rounded-xl border border-purple-400/30 bg-purple-400/10 px-4 py-2 text-sm font-semibold text-purple-300 transition hover:bg-purple-400/20"
+              >
+                English
+              </button>
+
+              <button
+                type="button"
+                onClick={() => useGoalTemplate("business")}
+                className="rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2 text-sm font-semibold text-yellow-300 transition hover:bg-yellow-400/20"
+              >
+                Business
+              </button>
+
+              <button
+                type="button"
+                onClick={() => useGoalTemplate("exam")}
+                className="rounded-xl border border-pink-400/30 bg-pink-400/10 px-4 py-2 text-sm font-semibold text-pink-300 transition hover:bg-pink-400/20"
+              >
+                Exam
+              </button>
+            </div>
         </div>
         <section className="mt-8 grid gap-4 md:grid-cols-4">
           {[
