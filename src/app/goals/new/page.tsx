@@ -119,6 +119,34 @@ export default function NewGoalPage() {
               Use Sample Goal
             </button>
         </div>
+        <section className="mt-8 grid gap-4 md:grid-cols-4">
+          {[
+            {
+              title: "1. Fill Goal",
+              text: "Tell the app your goal, current level, time, and target result.",
+            },
+            {
+              title: "2. Generate Plan",
+              text: "Create a 7-day starter roadmap based on your goal details.",
+            },
+            {
+              title: "3. Track Tasks",
+              text: "Tick daily tasks and see your progress percentage update.",
+            },
+            {
+              title: "4. Review Progress",
+              text: "Use reports, tests, and mentor guidance to improve your plan.",
+            },
+          ].map((step) => (
+            <div
+              key={step.title}
+              className="rounded-2xl border border-white/10 bg-white/5 p-5"
+            >
+              <h2 className="font-bold">{step.title}</h2>
+              <p className="mt-2 text-sm leading-6 text-zinc-400">{step.text}</p>
+            </div>
+          ))}
+        </section>
 
         <form className="mt-8 space-y-6 rounded-2xl border border-white/10 bg-white/5 p-6">
           <div>
