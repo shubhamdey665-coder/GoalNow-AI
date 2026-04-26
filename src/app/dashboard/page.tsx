@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
+  const [sortBy, setSortBy] = useState("Newest First");
 
   useEffect(() => {
     const savedGoals = localStorage.getItem("goalnow-goals");
@@ -39,6 +40,39 @@ export default function DashboardPage() {
     selectedCategory === "All Categories" || goal.category === selectedCategory;
 
   return matchesSearch && matchesCategory;
+});
+const sortedGoals = [...filteredGoals].sort((a, b) => {
+  const progressA =
+    a.plan.length === 0 ? 0 : Math.round((a.completedTasks.length / a.plan.length) * 100);
+
+  const progressB =
+    b.plan.length === 0 ? 0 : Math.round((b.completedTasks.length / b.plan.length) * 100);
+
+  if (sortBy === "Newest First") {
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  }
+
+  if (sortBy === "Oldest First") {
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  }
+
+  if (sortBy === "Highest Progress") {
+    return progressB - progressA;
+  }
+
+  if (sortBy === "Lowest Progress") {
+    return progressA - progressB;
+  }
+
+  if (sortBy === "A to Z") {
+    return a.name.localeCompare(b.name);
+  }
+
+  if (sortBy === "Z to A") {
+    return b.name.localeCompare(a.name);
+  }
+
+  return 0;
 });
 const completedGoals = goals.filter((goal) => {
   if (goal.plan.length === 0) return false;
@@ -73,7 +107,7 @@ const inProgressGoals = goals.filter((goal) => {
             Create New Goal
           </Link>
         </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
+          <div className="mt-8 grid gap-4 md:grid-cols-5">
           <input
             type="text"
             value={searchTerm}
@@ -95,6 +129,29 @@ const inProgressGoals = goals.filter((goal) => {
             <option>Business / Money</option>
             <option>Custom Goal</option>
           </select>
+          <select
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value)}
+              className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-blue-400"
+            >
+              <option>Newest First</option>
+              <option>Oldest First</option>
+              <option>Highest Progress</option>
+              <option>Lowest Progress</option>
+              <option>A to Z</option>
+              <option>Z to A</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm("");
+                setSelectedCategory("All Categories");
+                setSortBy("Newest First");
+              }}
+              className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
+            >
+              Clear
+            </button>
         </div>
         <div className="mt-6 grid gap-4 md:grid-cols-4">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -140,7 +197,7 @@ const inProgressGoals = goals.filter((goal) => {
           </div>
         ) : (
         <section className="mt-10 grid gap-6 md:grid-cols-3">
-            {filteredGoals.map((goal) => {
+            {sortedGoals.map((goal) => {
               const progress =
                 goal.plan.length === 0
                   ? 0
