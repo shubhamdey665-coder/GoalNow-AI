@@ -63,6 +63,30 @@ export default function GoalDetailPage() {
     localStorage.setItem("goalnow-goals", JSON.stringify(updatedGoals));
     setGoal(updatedGoal);
   }
+  function resetProgress() {
+    if (!goal) return;
+
+    const confirmReset = window.confirm(
+      `Are you sure you want to reset progress for "${goal.name}"?`
+    );
+
+    if (!confirmReset) return;
+
+    const updatedGoal = {
+      ...goal,
+      completedTasks: [],
+    };
+
+    const savedGoals = localStorage.getItem("goalnow-goals");
+    const goals: Goal[] = savedGoals ? JSON.parse(savedGoals) : [];
+
+    const updatedGoals = goals.map((item) =>
+      item.id === goal.id ? updatedGoal : item
+    );
+
+    localStorage.setItem("goalnow-goals", JSON.stringify(updatedGoals));
+    setGoal(updatedGoal);
+  }
         function deleteGoal() {
             if (!goal) return;
 
@@ -144,6 +168,13 @@ export default function GoalDetailPage() {
                     >
                       Edit Goal
                   </Link>
+                  <button
+                    type="button"
+                    onClick={resetProgress}
+                    className="rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2 text-sm font-semibold text-yellow-300 transition hover:bg-yellow-400/20"
+                  >
+                    Reset Progress
+                  </button>
                   <button
                       type="button"
                       onClick={deleteGoal}
