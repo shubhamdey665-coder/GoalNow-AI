@@ -49,6 +49,12 @@ export default function DashboardPage() {
     return matchesSearch && matchesCategory && matchesPriority;
 });
 const sortedGoals = [...filteredGoals].sort((a, b) => {
+    const getPriorityScore = (priority?: string) => {
+    if (priority === "High") return 3;
+    if (priority === "Medium") return 2;
+    if (priority === "Low") return 1;
+    return 2;
+  };
   const progressA =
     a.plan.length === 0 ? 0 : Math.round((a.completedTasks.length / a.plan.length) * 100);
 
@@ -77,6 +83,13 @@ const sortedGoals = [...filteredGoals].sort((a, b) => {
 
   if (sortBy === "Z to A") {
     return b.name.localeCompare(a.name);
+  }
+  if (sortBy === "Highest Priority") {
+    return getPriorityScore(b.priority) - getPriorityScore(a.priority);
+  }
+
+  if (sortBy === "Lowest Priority") {
+    return getPriorityScore(a.priority) - getPriorityScore(b.priority);
   }
 
   return 0;
@@ -180,6 +193,8 @@ function clearAllGoals() {
               <option>Oldest First</option>
               <option>Highest Progress</option>
               <option>Lowest Progress</option>
+              <option>Highest Priority</option>
+              <option>Lowest Priority</option>
               <option>A to Z</option>
               <option>Z to A</option>
             </select>

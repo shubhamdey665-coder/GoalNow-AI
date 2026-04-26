@@ -73,6 +73,7 @@ export default function GoalDetailPage() {
     Goal: ${goal.name}
     Category: ${goal.category}
     Duration: ${goal.duration}
+    Priority: ${goal.priority || "Medium"}
     Daily Time: ${goal.dailyTime}
     Created: ${new Date(goal.createdAt).toLocaleDateString()}
 
