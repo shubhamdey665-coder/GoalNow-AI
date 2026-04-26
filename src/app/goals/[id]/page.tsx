@@ -63,6 +63,35 @@ export default function GoalDetailPage() {
     localStorage.setItem("goalnow-goals", JSON.stringify(updatedGoals));
     setGoal(updatedGoal);
   }
+  function exportGoalSummary() {
+      if (!goal) return;
+
+      const summary = `
+    GoalNow AI Summary
+
+    Goal: ${goal.name}
+    Category: ${goal.category}
+    Duration: ${goal.duration}
+    Daily Time: ${goal.dailyTime}
+    Created: ${new Date(goal.createdAt).toLocaleDateString()}
+
+    Progress:
+    Total Tasks: ${totalTasks}
+    Completed: ${completedTaskCount}
+    Pending: ${pendingTaskCount}
+    Progress: ${progressPercentage}%
+
+    Today's Focus:
+    ${todaysFocus}
+
+    Target Result:
+    ${goal.targetResult}
+    `;
+
+      navigator.clipboard.writeText(summary.trim());
+
+      alert("Goal summary copied to clipboard.");
+    }
   function resetProgress() {
     if (!goal) return;
 
@@ -175,6 +204,13 @@ export default function GoalDetailPage() {
                     >
                       Edit Goal
                   </Link>
+                  <button
+                    type="button"
+                    onClick={exportGoalSummary}
+                    className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-400/20"
+                  >
+                    Export Summary
+                  </button>
                   <button
                     type="button"
                     onClick={resetProgress}
