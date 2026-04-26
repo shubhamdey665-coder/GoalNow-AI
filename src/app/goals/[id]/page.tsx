@@ -185,6 +185,15 @@ export default function GoalDetailPage() {
       );
 
       const todaysFocus = firstIncompleteTask || "All tasks completed. Great work!";
+      let motivationQuote = "";
+
+          if (progressPercentage >= 80) {
+            motivationQuote = "Excellent discipline. You are very close to mastering this weekly plan.";
+          } else if (progressPercentage >= 40) {
+            motivationQuote = "Good progress. Stay consistent and finish the remaining tasks one by one.";
+          } else {
+            motivationQuote = "Start small. Even one completed task today is progress.";
+          }
 
   return (
     <main className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
@@ -296,6 +305,10 @@ export default function GoalDetailPage() {
           <p className="mt-3 text-sm text-blue-100/80">
             Complete this task first. After ticking it, your next incomplete task will become the new focus.
           </p>
+        </section>
+        <section className="mt-8 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-6">
+          <p className="text-sm font-medium text-emerald-300">Motivation</p>
+          <h2 className="mt-2 text-2xl font-bold text-white">{motivationQuote}</h2>
         </section>
         <section className="mt-8 grid gap-4 md:grid-cols-4">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
