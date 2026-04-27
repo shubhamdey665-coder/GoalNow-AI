@@ -10,6 +10,7 @@ type Goal = {
   category: string;
   duration: string;
   priority?: string;
+  targetDate?: string;
   dailyTime: string;
   currentLevel: string;
   targetResult: string;
@@ -74,6 +75,9 @@ export default function GoalDetailPage() {
     Category: ${goal.category}
     Duration: ${goal.duration}
     Priority: ${goal.priority || "Medium"}
+    Target Date: ${
+      goal.targetDate ? new Date(goal.targetDate).toLocaleDateString() : "Not set"
+    }
     Daily Time: ${goal.dailyTime}
     Created: ${new Date(goal.createdAt).toLocaleDateString()}
 
@@ -187,6 +191,48 @@ export default function GoalDetailPage() {
       );
 
       const todaysFocus = firstIncompleteTask || "All tasks completed. Great work!";
+        let daysRemainingText = "No target date";
+
+          if (goal.targetDate) {
+            const today = new Date();
+            const target = new Date(goal.targetDate);
+
+            today.setHours(0, 0, 0, 0);
+            target.setHours(0, 0, 0, 0);
+
+            const differenceInTime = target.getTime() - today.getTime();
+            const differenceInDays = Math.ceil(differenceInTime / (1000 * 60 * 60 * 24));
+
+            if (differenceInDays > 0) {
+              daysRemainingText = `${differenceInDays} day${differenceInDays === 1 ? "" : "s"} left`;
+            } else if (differenceInDays === 0) {
+              daysRemainingText = "Due today";
+            } else {
+              daysRemainingText = `Overdue by ${Math.abs(differenceInDays)} day${
+                Math.abs(differenceInDays) === 1 ? "" : "s"
+              }`;
+            }
+          }
+          let deadlineColorClass = "text-zinc-400";
+
+            if (goal.targetDate) {
+              const today = new Date();
+              const target = new Date(goal.targetDate);
+
+              today.setHours(0, 0, 0, 0);
+              target.setHours(0, 0, 0, 0);
+
+              const differenceInTime = target.getTime() - today.getTime();
+              const differenceInDays = Math.ceil(differenceInTime / (1000 * 60 * 60 * 24));
+
+              if (differenceInDays > 0) {
+                deadlineColorClass = "text-blue-300";
+              } else if (differenceInDays === 0) {
+                deadlineColorClass = "text-yellow-300";
+              } else {
+                deadlineColorClass = "text-red-300";
+              }
+            }
       let motivationQuote = "";
 
           if (progressPercentage >= 80) {
@@ -288,7 +334,7 @@ export default function GoalDetailPage() {
              </div>
           
 
-          <div className="mt-6 grid gap-4 md:grid-cols-4">
+          <div className="mt-6 grid gap-4 md:grid-cols-3 lg:grid-cols-6">
             <div className="rounded-xl bg-zinc-900 p-4">
               <p className="text-sm text-zinc-400">Duration</p>
               <p className="mt-1 font-semibold">{goal.duration}</p>
@@ -296,6 +342,20 @@ export default function GoalDetailPage() {
             <div className="rounded-xl bg-zinc-900 p-4">
               <p className="text-sm text-zinc-400">Priority</p>
               <p className="mt-1 font-semibold">{goal.priority || "Medium"}</p>
+            </div>
+            <div className="rounded-xl bg-zinc-900 p-4">
+              <p className="text-sm text-zinc-400">Target Date</p>
+              <p className="mt-1 font-semibold">
+                {goal.targetDate
+                  ? new Date(goal.targetDate).toLocaleDateString()
+                  : "Not set"}
+              </p>
+            </div>
+            <div className="rounded-xl bg-zinc-900 p-4">
+              <p className="text-sm text-zinc-400">Days Remaining</p>
+              <p className={`mt-1 font-semibold ${deadlineColorClass}`}>
+                {daysRemainingText}
+              </p>
             </div>
 
             <div className="rounded-xl bg-zinc-900 p-4">

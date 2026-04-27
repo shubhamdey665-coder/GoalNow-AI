@@ -10,6 +10,7 @@ type Goal = {
   category: string;
   duration: string;
   priority?: string;
+  targetDate?: string;
   dailyTime: string;
   currentLevel: string;
   targetResult: string;
@@ -28,6 +29,7 @@ export default function EditGoalPage() {
   const [category, setCategory] = useState("Career / Job");
   const [duration, setDuration] = useState("7 Days");
   const [priority, setPriority] = useState("Medium");
+  const [targetDate, setTargetDate] = useState("");
   const [dailyTime, setDailyTime] = useState("");
   const [currentLevel, setCurrentLevel] = useState("");
   const [targetResult, setTargetResult] = useState("");
@@ -45,6 +47,7 @@ export default function EditGoalPage() {
       setCategory(foundGoal.category);
       setDuration(foundGoal.duration);
       setPriority(foundGoal.priority || "Medium");
+      setTargetDate(foundGoal.targetDate || "");
       setDailyTime(foundGoal.dailyTime);
       setCurrentLevel(foundGoal.currentLevel);
       setTargetResult(foundGoal.targetResult);
@@ -79,6 +82,7 @@ export default function EditGoalPage() {
       category,
       duration,
       priority,
+      targetDate,
       dailyTime,
       currentLevel,
       targetResult,
@@ -180,6 +184,15 @@ export default function EditGoalPage() {
               <option>Medium</option>
               <option>High</option>
             </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium">Target Date</label>
+            <input
+              type="date"
+              value={targetDate}
+              onChange={(event) => setTargetDate(event.target.value)}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-blue-400"
+            />
           </div>
 
           <div>

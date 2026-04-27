@@ -9,6 +9,7 @@ export default function NewGoalPage() {
   const [category, setCategory] = useState("Career / Job");
   const [duration, setDuration] = useState("7 Days");
   const [priority, setPriority] = useState("Medium");
+  const [targetDate, setTargetDate] = useState("");
   const [dailyTime, setDailyTime] = useState("");
   const [currentLevel, setCurrentLevel] = useState("");
   const [targetResult, setTargetResult] = useState("");
@@ -20,11 +21,15 @@ export default function NewGoalPage() {
   plan.length === 0 ? 0 : Math.round((completedTasks.length / plan.length) * 100);
 
   function useGoalTemplate(templateName: string) {
+      const sevenDaysFromNow = new Date();
+        sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+        const formattedTargetDate = sevenDaysFromNow.toISOString().split("T")[0];
     if (templateName === "google") {
       setGoalName("Google SWE Preparation");
       setCategory("Career / Job");
       setDuration("7 Days");
       setPriority("High");
+      setTargetDate(formattedTargetDate);
       setDailyTime("4 hours daily");
       setCurrentLevel("I know basic HTML, CSS, and Python. I am weak in DSA.");
       setTargetResult("I want to become job-ready for a Google SWE role.");
@@ -35,6 +40,7 @@ export default function NewGoalPage() {
       setCategory("Fitness / Fat Burning");
       setDuration("7 Days");
       setPriority("High");
+      setTargetDate(formattedTargetDate);
       setDailyTime("1 hour daily");
       setCurrentLevel("I am a beginner and want to improve my fitness routine.");
       setTargetResult("I want to lose fat safely and build a consistent healthy routine.");
@@ -45,6 +51,7 @@ export default function NewGoalPage() {
       setCategory("English / Communication");
       setDuration("7 Days");
       setPriority("Medium");
+      setTargetDate(formattedTargetDate);
       setDailyTime("30 minutes daily");
       setCurrentLevel("I know basic English but I want to improve grammar and speaking.");
       setTargetResult("I want to speak English confidently and improve communication.");
@@ -55,6 +62,7 @@ export default function NewGoalPage() {
       setCategory("Business / Money");
       setDuration("7 Days");
       setPriority("Medium");
+      setTargetDate(formattedTargetDate);
       setDailyTime("1 hour daily");
       setCurrentLevel("I have a small business idea and want to plan growth steps.");
       setTargetResult("I want to improve sales, planning, and daily business execution.");
@@ -65,6 +73,7 @@ export default function NewGoalPage() {
       setCategory("Education / Exam");
       setDuration("7 Days");
       setPriority("High");
+      setTargetDate(formattedTargetDate);
       setDailyTime("3 hours daily");
       setCurrentLevel("I have basic knowledge but need a structured revision plan.");
       setTargetResult("I want to prepare consistently and score better in my exam.");
@@ -79,6 +88,7 @@ export default function NewGoalPage() {
     setCategory("Career / Job");
     setDuration("7 Days");
     setPriority("Medium");
+    setTargetDate("");
     setDailyTime("");
     setCurrentLevel("");
     setTargetResult("");
@@ -112,6 +122,7 @@ export default function NewGoalPage() {
         category: category,
         duration: duration,
         priority: priority,
+        targetDate: targetDate,
         dailyTime: dailyTime,
         currentLevel: currentLevel,
         targetResult: targetResult,
@@ -306,6 +317,15 @@ export default function NewGoalPage() {
               <option>Medium</option>
               <option>High</option>
             </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium">Target Date</label>
+            <input
+              type="date"
+              value={targetDate}
+              onChange={(event) => setTargetDate(event.target.value)}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-blue-400"
+            />
           </div>
 
           <div>

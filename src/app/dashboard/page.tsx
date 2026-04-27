@@ -10,6 +10,7 @@ type Goal = {
   category: string;
   duration: string;
   priority?: string;
+  targetDate?: string;
   dailyTime: string;
   currentLevel: string;
   targetResult: string;
@@ -105,6 +106,56 @@ const inProgressGoals = goals.filter((goal) => {
 
   return goal.completedTasks.length < goal.plan.length;
 });
+function getDaysRemainingText(targetDate?: string) {
+  if (!targetDate) {
+    return "No target date";
+  }
+
+  const today = new Date();
+  const target = new Date(targetDate);
+
+  today.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
+
+  const differenceInTime = target.getTime() - today.getTime();
+  const differenceInDays = Math.ceil(differenceInTime / (1000 * 60 * 60 * 24));
+
+  if (differenceInDays > 0) {
+    return `${differenceInDays} day${differenceInDays === 1 ? "" : "s"} left`;
+  }
+
+  if (differenceInDays === 0) {
+    return "Due today";
+  }
+
+  return `Overdue by ${Math.abs(differenceInDays)} day${
+    Math.abs(differenceInDays) === 1 ? "" : "s"
+  }`;
+}
+function getDeadlineColorClass(targetDate?: string) {
+  if (!targetDate) {
+    return "text-zinc-500";
+  }
+
+  const today = new Date();
+  const target = new Date(targetDate);
+
+  today.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
+
+  const differenceInTime = target.getTime() - today.getTime();
+  const differenceInDays = Math.ceil(differenceInTime / (1000 * 60 * 60 * 24));
+
+  if (differenceInDays > 0) {
+    return "text-blue-300";
+  }
+
+  if (differenceInDays === 0) {
+    return "text-yellow-300";
+  }
+
+  return "text-red-300";
+}
 function clearAllGoals() {
   const confirmClear = window.confirm(
     "Are you sure you want to delete all goals? This cannot be undone."
@@ -300,7 +351,19 @@ function clearAllGoals() {
                   <p className="mt-1 text-sm leading-6 text-zinc-400">
                     Priority: {goal.priority || "Medium"}
                   </p>
-
+                  <p className="mt-1 text-sm leading-6 text-zinc-400">
+                    Target:{" "}
+                    {goal.targetDate
+                      ? new Date(goal.targetDate).toLocaleDateString()
+                      : "Not set"}
+                  </p>
+                  <p
+                    className={`mt-1 text-sm font-medium leading-6 ${getDeadlineColorClass(
+                      goal.targetDate
+                    )}`}
+                    >
+                    Days: {getDaysRemainingText(goal.targetDate)}
+                  </p>
                   <p className="mt-1 text-sm leading-6 text-zinc-400">
                     Daily time: {goal.dailyTime}
                   </p>
