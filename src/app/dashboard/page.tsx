@@ -106,6 +106,17 @@ const inProgressGoals = goals.filter((goal) => {
 
   return goal.completedTasks.length < goal.plan.length;
 });
+function getPriorityBadgeClass(priority?: string) {
+  if (priority === "High") {
+    return "border-red-400/30 bg-red-400/10 text-red-300";
+  }
+
+  if (priority === "Low") {
+    return "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
+  }
+
+  return "border-blue-400/30 bg-blue-400/10 text-blue-300";
+}
 function getDaysRemainingText(targetDate?: string) {
   if (!targetDate) {
     return "No target date";
@@ -155,6 +166,30 @@ function getDeadlineColorClass(targetDate?: string) {
   }
 
   return "text-red-300";
+}
+function getDeadlineBadgeClass(targetDate?: string) {
+  if (!targetDate) {
+    return "border-zinc-500/30 bg-zinc-500/10 text-zinc-400";
+  }
+
+  const today = new Date();
+  const target = new Date(targetDate);
+
+  today.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
+
+  const differenceInTime = target.getTime() - today.getTime();
+  const differenceInDays = Math.ceil(differenceInTime / (1000 * 60 * 60 * 24));
+
+  if (differenceInDays > 0) {
+    return "border-blue-400/30 bg-blue-400/10 text-blue-300";
+  }
+
+  if (differenceInDays === 0) {
+    return "border-yellow-400/30 bg-yellow-400/10 text-yellow-300";
+  }
+
+  return "border-red-400/30 bg-red-400/10 text-red-300";
 }
 function clearAllGoals() {
   const confirmClear = window.confirm(
@@ -348,22 +383,30 @@ function clearAllGoals() {
                   <p className="mt-3 text-sm leading-6 text-zinc-400">
                     Duration: {goal.duration}
                   </p>
-                  <p className="mt-1 text-sm leading-6 text-zinc-400">
-                    Priority: {goal.priority || "Medium"}
-                  </p>
+                  <div className="mt-3">
+                    <span
+                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getPriorityBadgeClass(
+                        goal.priority
+                      )}`}
+                    >
+                      Priority: {goal.priority || "Medium"}
+                    </span>
+                  </div>
                   <p className="mt-1 text-sm leading-6 text-zinc-400">
                     Target:{" "}
                     {goal.targetDate
                       ? new Date(goal.targetDate).toLocaleDateString()
                       : "Not set"}
                   </p>
-                  <p
-                    className={`mt-1 text-sm font-medium leading-6 ${getDeadlineColorClass(
-                      goal.targetDate
-                    )}`}
+                  <div className="mt-3">
+                    <span
+                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getDeadlineBadgeClass(
+                        goal.targetDate
+                      )}`}
                     >
-                    Days: {getDaysRemainingText(goal.targetDate)}
-                  </p>
+                      {getDaysRemainingText(goal.targetDate)}
+                    </span>
+                  </div>
                   <p className="mt-1 text-sm leading-6 text-zinc-400">
                     Daily time: {goal.dailyTime}
                   </p>
