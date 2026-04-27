@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 export default function NewGoalPage() {
   const [goalName, setGoalName] = useState("");
@@ -517,6 +518,7 @@ export default function NewGoalPage() {
         </form>
       </div>
       </main>
+      <Footer />
     </>
   );
 }
