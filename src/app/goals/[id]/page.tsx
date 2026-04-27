@@ -17,6 +17,7 @@ type Goal = {
   plan: string[];
   completedTasks: number[];
   createdAt: string;
+  updatedAt?: string;
 };
 
 export default function GoalDetailPage() {
@@ -53,6 +54,7 @@ export default function GoalDetailPage() {
     const updatedGoal = {
       ...goal,
       completedTasks: updatedCompletedTasks,
+      updatedAt: new Date().toISOString(),
     };
 
     const savedGoals = localStorage.getItem("goalnow-goals");
@@ -112,6 +114,7 @@ export default function GoalDetailPage() {
       const updatedGoal = {
         ...goal,
         completedTasks: allTaskIndexes,
+        updatedAt: new Date().toISOString(),
       };
 
       const savedGoals = localStorage.getItem("goalnow-goals");
@@ -136,6 +139,7 @@ export default function GoalDetailPage() {
     const updatedGoal = {
       ...goal,
       completedTasks: [],
+      updatedAt: new Date().toISOString(),
     };
 
     const savedGoals = localStorage.getItem("goalnow-goals");
@@ -340,7 +344,7 @@ export default function GoalDetailPage() {
              </div>
           
 
-          <div className="mt-6 grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+          <div className="mt-6 grid gap-4 md:grid-cols-3 lg:grid-cols-7">
             <div className="rounded-xl bg-zinc-900 p-4">
               <p className="text-sm text-zinc-400">Duration</p>
               <p className="mt-1 font-semibold">{goal.duration}</p>
@@ -372,6 +376,14 @@ export default function GoalDetailPage() {
               <p className="text-sm text-zinc-400">Created Date</p>
               <p className="mt-1 font-semibold">
                 {new Date(goal.createdAt).toLocaleDateString()}
+              </p>
+            </div>
+            <div className="rounded-xl bg-zinc-900 p-4">
+              <p className="text-sm text-zinc-400">Last Updated</p>
+              <p className="mt-1 font-semibold">
+                {goal.updatedAt
+                  ? new Date(goal.updatedAt).toLocaleDateString()
+                  : "Not updated yet"}
               </p>
             </div>
           </div>

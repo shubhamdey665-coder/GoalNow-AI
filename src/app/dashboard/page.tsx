@@ -17,6 +17,7 @@ type Goal = {
   plan: string[];
   completedTasks: number[];
   createdAt: string;
+  updatedAt?: string;
 };
 
 export default function DashboardPage() {
@@ -413,8 +414,14 @@ function clearAllGoals() {
                   <p className="mt-1 text-sm leading-6 text-zinc-500">
                     Created: {new Date(goal.createdAt).toLocaleDateString()}
                   </p>
+                  <p className="mt-1 text-sm leading-6 text-zinc-500">
+                    Updated:{" "}
+                    {goal.updatedAt
+                      ? new Date(goal.updatedAt).toLocaleDateString()
+                      : "Not updated yet"}
+                  </p>
 
-                      <div className="mt-6">
+                  <div className="mt-6">
                     <div className="mb-2 flex justify-between text-sm">
                       <span className="text-zinc-400">Progress</span>
                       <span>{progress}%</span>

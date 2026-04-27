@@ -17,6 +17,7 @@ type Goal = {
   plan: string[];
   completedTasks: number[];
   createdAt: string;
+  updatedAt?: string;
 };
 
 export default function EditGoalPage() {
@@ -86,6 +87,7 @@ export default function EditGoalPage() {
       dailyTime,
       currentLevel,
       targetResult,
+      updatedAt: new Date().toISOString(),
     };
 
     const updatedGoals = goals.map((item) =>
