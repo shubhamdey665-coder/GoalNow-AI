@@ -15,6 +15,8 @@ type Goal = {
   plan: string[];
   completedTasks: number[];
   createdAt: string;
+  updatedAt?: string;
+  mentorMessages?: ChatMessage[];
 };
 
 type ChatMessage = {
@@ -43,10 +45,15 @@ export default function MentorPage() {
 
     if (foundGoal) {
       setGoal(foundGoal);
+
+      if (foundGoal.mentorMessages && foundGoal.mentorMessages.length > 0) {
+        setMessages(foundGoal.mentorMessages);
+      }
     }
   }, [goalId]);
 
   function sendMessage() {
+    if (!goal) return;
     if (!input.trim()) return;
 
     const userMessage: ChatMessage = {
@@ -54,15 +61,33 @@ export default function MentorPage() {
       text: input,
     };
 
-    const completedCount = goal?.completedTasks.length || 0;
-    const totalCount = goal?.plan.length || 0;
+    const completedCount = goal.completedTasks.length || 0;
+    const totalCount = goal.plan.length || 0;
 
     const mentorReply: ChatMessage = {
       role: "mentor",
-      text: `For your goal "${goal?.name}", you have completed ${completedCount}/${totalCount} tasks. Your next best action is to complete one pending task today, then revise what you learned for 15 minutes.`,
+      text: `For your goal "${goal.name}", you have completed ${completedCount}/${totalCount} tasks. Your next best action is to complete one pending task today, then revise what you learned for 15 minutes.`,
     };
 
-    setMessages([...messages, userMessage, mentorReply]);
+    const updatedMessages = [...messages, userMessage, mentorReply];
+
+    const updatedGoal = {
+      ...goal,
+      mentorMessages: updatedMessages,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const savedGoals = localStorage.getItem("goalnow-goals");
+    const goals: Goal[] = savedGoals ? JSON.parse(savedGoals) : [];
+
+    const updatedGoals = goals.map((item) =>
+      item.id === goal.id ? updatedGoal : item
+    );
+
+    localStorage.setItem("goalnow-goals", JSON.stringify(updatedGoals));
+
+    setGoal(updatedGoal);
+    setMessages(updatedMessages);
     setInput("");
   }
 
@@ -99,6 +124,38 @@ export default function MentorPage() {
             Ask your mentor about next actions, weak points, revision, motivation,
             and progress.
           </p>
+          <button
+            type="button"
+            onClick={() => {
+              const confirmClear = window.confirm("Clear mentor chat history?");
+              if (!confirmClear) return;
+
+              const defaultMessage: ChatMessage = {
+                role: "mentor",
+                text: "Hi, I am your GoalNow AI Mentor. Ask me about your goal, plan, weak points, or next action.",
+              };
+
+              const updatedGoal = {
+                ...goal,
+                mentorMessages: [defaultMessage],
+                updatedAt: new Date().toISOString(),
+              };
+
+              const savedGoals = localStorage.getItem("goalnow-goals");
+              const goals: Goal[] = savedGoals ? JSON.parse(savedGoals) : [];
+
+              const updatedGoals = goals.map((item) =>
+                item.id === goal.id ? updatedGoal : item
+              );
+
+                localStorage.setItem("goalnow-goals", JSON.stringify(updatedGoals));
+                setGoal(updatedGoal);
+                setMessages([defaultMessage]);
+              }}
+              className="mt-5 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-400/20"
+            >
+              Clear Chat
+          </button>
         </section>
 
         <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-6">
