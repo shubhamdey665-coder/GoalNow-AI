@@ -203,13 +203,13 @@ function clearAllGoals() {
             )}
           </div>
         </div>
-          <div className="mt-8 grid gap-4 md:grid-cols-6">
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
           <input
             type="text"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="Search goals by name, category, or duration..."
-            className="md:col-span-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-blue-400"
+            className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-blue-400 sm:col-span-2 lg:col-span-2"
           />
 
           <select
@@ -257,7 +257,7 @@ function clearAllGoals() {
                 setSelectedPriority("All Priorities");
                 setSortBy("Newest First");
               }}
-              className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
+              className="w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
             >
               Clear
             </button>
