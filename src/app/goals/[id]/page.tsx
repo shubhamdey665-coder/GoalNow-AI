@@ -101,6 +101,12 @@ export default function GoalDetailPage() {
     function markAllComplete() {
       if (!goal) return;
 
+      const confirmMarkAll = window.confirm(
+        `Are you sure you want to mark all tasks complete for "${goal.name}"?`
+      );
+
+      if (!confirmMarkAll) return;
+
       const allTaskIndexes = goal.plan.map((_item, index) => index);
 
       const updatedGoal = {
