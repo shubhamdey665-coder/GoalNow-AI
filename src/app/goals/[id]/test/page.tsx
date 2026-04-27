@@ -15,6 +15,9 @@ type Goal = {
   plan: string[];
   completedTasks: number[];
   createdAt: string;
+  updatedAt?: string;
+latestTestResult?: string;
+latestTestDate?: string;
 };
 
 const questions = [
@@ -63,28 +66,48 @@ export default function TestPage() {
   }
 
   function submitTest() {
+    if (!goal) return;
+
     if (Object.keys(answers).length < questions.length) {
       setResult("Please answer all questions before submitting the test.");
       return;
     }
 
-    const completed = goal?.completedTasks.length || 0;
-    const total = goal?.plan.length || 0;
+    const completed = goal.completedTasks.length || 0;
+    const total = goal.plan.length || 0;
     const progress = total === 0 ? 0 : Math.round((completed / total) * 100);
 
+    let testResult = "";
+
     if (progress >= 80) {
-      setResult(
-        "Excellent. You are consistent this week. Next week you can increase difficulty slightly."
-      );
+      testResult =
+        "Excellent. You are consistent this week. Next week you can increase difficulty slightly.";
     } else if (progress >= 40) {
-      setResult(
-        "Good start. You need more revision and consistency before increasing difficulty."
-      );
+      testResult =
+        "Good start. You need more revision and consistency before increasing difficulty.";
     } else {
-      setResult(
-        "You need a lighter plan next week. Focus on completing fewer tasks properly."
-      );
+      testResult =
+        "You need a lighter plan next week. Focus on completing fewer tasks properly.";
     }
+
+    const updatedGoal = {
+      ...goal,
+      latestTestResult: testResult,
+      latestTestDate: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const savedGoals = localStorage.getItem("goalnow-goals");
+    const goals: Goal[] = savedGoals ? JSON.parse(savedGoals) : [];
+
+    const updatedGoals = goals.map((item) =>
+      item.id === goal.id ? updatedGoal : item
+    );
+
+    localStorage.setItem("goalnow-goals", JSON.stringify(updatedGoals));
+
+    setGoal(updatedGoal);
+    setResult(testResult);
   }
 
   if (!goal) {
@@ -119,6 +142,17 @@ export default function TestPage() {
           <p className="mt-3 text-zinc-400">
             Answer these questions to check your weekly progress and readiness.
           </p>
+          {goal.latestTestResult && (
+            <div className="mt-5 rounded-xl border border-blue-400/30 bg-blue-400/10 p-4 text-sm text-blue-200">
+              <p className="font-semibold">Latest Test Result</p>
+              <p className="mt-2">{goal.latestTestResult}</p>
+              {goal.latestTestDate && (
+                <p className="mt-2 text-xs text-blue-100/70">
+                  Saved on {new Date(goal.latestTestDate).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="mt-8 space-y-5 rounded-2xl border border-white/10 bg-white/5 p-6">

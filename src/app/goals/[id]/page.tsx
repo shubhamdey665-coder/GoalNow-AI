@@ -18,6 +18,8 @@ type Goal = {
   completedTasks: number[];
   createdAt: string;
   updatedAt?: string;
+  latestTestResult?: string;
+  latestTestDate?: string;
 };
 
 export default function GoalDetailPage() {
@@ -415,6 +417,20 @@ export default function GoalDetailPage() {
           <p className="text-sm font-medium text-emerald-300">Motivation</p>
           <h2 className="mt-2 text-2xl font-bold text-white">{motivationQuote}</h2>
         </section>
+        {goal.latestTestResult && (
+          <section className="mt-8 rounded-2xl border border-purple-400/30 bg-purple-400/10 p-6">
+            <p className="text-sm font-medium text-purple-300">Latest Weekly Test</p>
+            <h2 className="mt-2 text-xl font-bold text-white">
+              {goal.latestTestResult}
+            </h2>
+
+            {goal.latestTestDate && (
+              <p className="mt-3 text-sm text-purple-100/80">
+                Saved on {new Date(goal.latestTestDate).toLocaleDateString()}
+              </p>
+            )}
+          </section>
+        )}
         <section className="mt-8 grid gap-4 md:grid-cols-4">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
             <p className="text-sm text-zinc-400">Total Tasks</p>
