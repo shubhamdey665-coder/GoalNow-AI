@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GoalNow AI
 
-## Getting Started
+GoalNow AI is an AI-powered personal goal tracker and mentor web app.  
+It helps users create goals, generate starter plans, track progress, review performance, and stay consistent.
 
-First, run the development server:
+## Live Demo
+
+https://goalnow-ai.vercel.app
+
+## Features
+
+- Create goals with category, priority, duration, and target date
+- Use quick goal templates like Google SWE, Fat Burning, English, Business, and Exam Preparation
+- Generate a 7-day starter plan
+- Track daily tasks with checkboxes
+- View progress percentage and task summary
+- See Today’s Focus based on the first incomplete task
+- View Goal Health Status based on progress
+- Track target date and days remaining
+- See deadline status colors for future, due today, and overdue goals
+- Edit goal details
+- Delete individual goals
+- Clear all goals
+- Reset progress
+- Mark all tasks complete
+- Export goal summary to clipboard
+- Dashboard search, category filter, priority filter, sorting, and clear filters
+- Weekly Test page
+- Progress Report page
+- AI Mentor UI
+
+## Tech Stack
+
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- localStorage for MVP data storage
+- GitHub for version control
+- Vercel for deployment
+
+## Current Version
+
+This is the frontend MVP version.  
+Goals are currently stored in browser localStorage.
+
+## Planned Backend Features
+
+- Supabase authentication
+- User accounts
+- Database storage
+- Save goals per user
+- Real AI-generated plans
+- AI mentor with real chat memory
+- Weekly test history
+- Progress analytics
+- PDF report export
+
+## How to Run Locally
+
+Clone the project:
+
+```bash
+git clone https://github.com/shubhamdey665-coder/goalnow-ai.git
+```
+
+Go into the project folder:
+
+```bash
+cd goalnow-ai
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open in browser:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```txt
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project Status
 
-## Learn More
+Frontend MVP completed.  
+Backend and real AI integration are planned next.
 
-To learn more about Next.js, take a look at the following resources:
+## Author
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Built by Shubham Dey.
