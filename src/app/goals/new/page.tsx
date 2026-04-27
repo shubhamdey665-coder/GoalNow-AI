@@ -17,6 +17,23 @@ export default function NewGoalPage() {
   const [plan, setPlan] = useState<string[]>([]);
   const [completedTasks, setCompletedTasks] = useState<number[]>([]);
   const [goalSaved, setGoalSaved] = useState(false);
+  const goalNameError =
+  goalName.trim().length > 0 && goalName.trim().length < 3
+    ? "Goal name must be at least 3 characters."
+    : "";
+  let targetDateError = "";
+
+  if (targetDate) {
+    const today = new Date();
+    const selectedDate = new Date(targetDate);
+
+    today.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
+
+    if (selectedDate.getTime() <= today.getTime()) {
+      targetDateError = "Please choose a future target date.";
+    }
+  }
   const progressPercentage =
   plan.length === 0 ? 0 : Math.round((completedTasks.length / plan.length) * 100);
 
@@ -97,13 +114,55 @@ export default function NewGoalPage() {
     setCompletedTasks([]);
     setGoalSaved(false);
   }
+  function validateGoalForm() {
+    if (!goalName.trim() || !dailyTime.trim() || !currentLevel.trim() || !targetResult.trim()) {
+      return "Please fill all required fields before generating your AI plan.";
+    }
+
+    if (goalName.trim().length < 3) {
+      return "Goal name must be at least 3 characters.";
+    }
+
+    if (dailyTime.trim().length < 3) {
+      return "Daily available time must be at least 3 characters.";
+    }
+
+    if (currentLevel.trim().length < 10) {
+      return "Current level must be at least 10 characters.";
+    }
+
+    if (targetResult.trim().length < 10) {
+      return "Target result must be at least 10 characters.";
+    }
+
+    if (targetDateError) {
+      return targetDateError;
+    }
+    return "";
+  }
   function handleGeneratePlan() {
-    if (!goalName || !dailyTime || !currentLevel || !targetResult) {
-        setMessage("Please fill all fields before generating your AI plan.");
+      if (goalNameError) {
+        setMessage(goalNameError);
         setPlan([]);
         setCompletedTasks([]);
         setGoalSaved(false);
         return;
+      }
+      if (targetDateError) {
+        setMessage(targetDateError);
+        setPlan([]);
+        setCompletedTasks([]);
+        setGoalSaved(false);
+        return;
+    }
+    const validationError = validateGoalForm();
+
+    if (validationError) {
+      setMessage(validationError);
+      setPlan([]);
+      setCompletedTasks([]);
+      setGoalSaved(false);
+      return;
     }
 
     const samplePlan = [
@@ -271,8 +330,16 @@ export default function NewGoalPage() {
               value={goalName}
               onChange={(event) => setGoalName(event.target.value)}
               placeholder="Example: Google SWE Preparation"
-              className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-blue-400"
+              className={
+                goalNameError
+                  ? "mt-2 w-full rounded-xl border border-red-400 bg-zinc-900 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-red-400"
+                  : "mt-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-blue-400"
+              }
             />
+
+            {goalNameError && (
+              <p className="mt-2 text-sm text-red-300">{goalNameError}</p>
+            )}
           </div>
 
           <div>
@@ -323,9 +390,18 @@ export default function NewGoalPage() {
             <input
               type="date"
               value={targetDate}
+              min={new Date(Date.now() + 86400000).toISOString().split("T")[0]}
               onChange={(event) => setTargetDate(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-blue-400"
+              className={
+                targetDateError
+                  ? "mt-2 w-full rounded-xl border border-red-400 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-red-400"
+                  : "mt-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-blue-400"
+              }
             />
+
+            {targetDateError && (
+              <p className="mt-2 text-sm text-red-300">{targetDateError}</p>
+            )}
           </div>
 
           <div>
