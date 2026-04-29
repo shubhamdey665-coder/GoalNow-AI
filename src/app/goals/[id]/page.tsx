@@ -3,24 +3,144 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import { deleteGoalById, getGoalById, updateGoal } from "@/lib/goalStorage";
+import { downloadComplexPlanPdf } from "@/lib/exportPlanPdf";
+import type { Goal } from "@/types/goal";
 
-type Goal = {
-  id: string;
-  name: string;
-  category: string;
-  duration: string;
-  priority?: string;
-  targetDate?: string;
-  dailyTime: string;
-  currentLevel: string;
-  targetResult: string;
-  plan: string[];
-  completedTasks: number[];
-  createdAt: string;
-  updatedAt?: string;
-  latestTestResult?: string;
-  latestTestDate?: string;
-};
+function formatDateToYMD(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getTodayString() {
+  return formatDateToYMD(new Date());
+}
+function getYesterdayString() {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  return formatDateToYMD(yesterday);
+}
+
+function getDateRange(startDate: string, endDate: string) {
+  const dates: string[] = [];
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+
+  while (start <= end) {
+    dates.push(formatDateToYMD(start));
+    start.setDate(start.getDate() + 1);
+  }
+
+  return dates;
+}
+
+function getReadableDate(dateString: string) {
+  return new Date(dateString).toLocaleDateString();
+}
+
+function getRecentDates(totalDays: number) {
+  const dates: string[] = [];
+
+  for (let index = totalDays - 1; index >= 0; index--) {
+    const date = new Date();
+    date.setDate(date.getDate() - index);
+    dates.push(date.toISOString().split("T")[0]);
+  }
+
+  return dates;
+}
+function getMonthCalendarDays(calendarDate: Date) {
+  const year = calendarDate.getFullYear();
+  const month = calendarDate.getMonth();
+
+  const firstDayOfMonth = new Date(year, month, 1);
+  const lastDayOfMonth = new Date(year, month + 1, 0);
+
+  const leadingBlankDays = firstDayOfMonth.getDay();
+  const totalDaysInMonth = lastDayOfMonth.getDate();
+
+  const calendarDays: (string | null)[] = [];
+
+  for (let index = 0; index < leadingBlankDays; index++) {
+    calendarDays.push(null);
+  }
+
+  for (let day = 1; day <= totalDaysInMonth; day++) {
+    calendarDays.push(formatDateToYMD(new Date(year, month, day)));
+  }
+
+  return calendarDays;
+}
+
+function getMonthTitle(calendarDate: Date) {
+  return calendarDate.toLocaleDateString("en-IN", {
+    month: "long",
+    year: "numeric",
+  });
+}
+function normalizeComplexGoalDates(goal: Goal) {
+  if (goal.trackerType !== "complex" || !goal.complexPlanDays) {
+    return goal;
+  }
+
+  const today = getTodayString();
+  const yesterday = getYesterdayString();
+
+  let changed = false;
+
+  const updatedPlanDays = goal.complexPlanDays.map((day) => {
+    if (day.dayNumber !== goal.activeDayNumber || day.completed) {
+      return day;
+    }
+
+    let assignedDate = day.assignedDate;
+
+    if (!assignedDate) {
+      assignedDate = today;
+      changed = true;
+    }
+
+    let missedDates = day.missedDates || [];
+
+    if (assignedDate < today) {
+      const datesToMarkMissed = getDateRange(assignedDate, yesterday);
+
+      const uniqueMissedDates = Array.from(
+        new Set([...missedDates, ...datesToMarkMissed])
+      );
+
+      if (uniqueMissedDates.length !== missedDates.length) {
+        missedDates = uniqueMissedDates;
+        changed = true;
+      }
+    }
+
+    return {
+      ...day,
+      assignedDate,
+      missedDates,
+    };
+  });
+
+  if (!changed) {
+    return goal;
+  }
+
+  return {
+    ...goal,
+    complexPlanDays: updatedPlanDays,
+    updatedAt: new Date().toISOString(),
+  };
+}
 
 export default function GoalDetailPage() {
   const params = useParams();
@@ -28,477 +148,908 @@ export default function GoalDetailPage() {
   const goalId = params.id as string;
 
   const [goal, setGoal] = useState<Goal | null>(null);
+  const [normalCalendarDate, setNormalCalendarDate] = useState(new Date());
 
   useEffect(() => {
-    const savedGoals = localStorage.getItem("goalnow-goals");
-    const goals: Goal[] = savedGoals ? JSON.parse(savedGoals) : [];
+  const foundGoal = getGoalById(goalId);
 
-    const foundGoal = goals.find((item) => item.id === goalId);
+  if (foundGoal) {
+    const normalizedGoal = normalizeComplexGoalDates(foundGoal);
 
-    if (foundGoal) {
-      setGoal(foundGoal);
+    if (JSON.stringify(normalizedGoal) !== JSON.stringify(foundGoal)) {
+      updateGoal(normalizedGoal);
     }
-  }, [goalId]);
 
-  function toggleTask(index: number) {
+    setGoal(normalizedGoal);
+  }
+}, [goalId]);
+
+  function saveUpdatedGoal(updatedGoal: Goal) {
+    updateGoal(updatedGoal);
+    setGoal(updatedGoal);
+  }
+
+  function toggleNormalDate(date: string) {
     if (!goal) return;
 
-    let updatedCompletedTasks: number[];
+    const checkIns = goal.normalCheckIns || [];
+    const existingCheckIn = checkIns.find((item) => item.date === date);
 
-    if (goal.completedTasks.includes(index)) {
-      updatedCompletedTasks = goal.completedTasks.filter(
-        (taskIndex) => taskIndex !== index
+    let updatedCheckIns;
+
+    if (existingCheckIn) {
+      updatedCheckIns = checkIns.map((item) =>
+        item.date === date
+          ? {
+              ...item,
+              completed: !item.completed,
+              editedAt: new Date().toISOString(),
+            }
+          : item
       );
     } else {
-      updatedCompletedTasks = [...goal.completedTasks, index];
+      updatedCheckIns = [
+        ...checkIns,
+        {
+          date,
+          completed: true,
+          editedAt: new Date().toISOString(),
+        },
+      ];
     }
 
-    const updatedGoal = {
+    const updatedGoal: Goal = {
       ...goal,
-      completedTasks: updatedCompletedTasks,
+      normalCheckIns: updatedCheckIns,
       updatedAt: new Date().toISOString(),
     };
 
-    const savedGoals = localStorage.getItem("goalnow-goals");
-    const goals: Goal[] = savedGoals ? JSON.parse(savedGoals) : [];
+    saveUpdatedGoal(updatedGoal);
+  }
+  function goToPreviousMonth() {
+  setNormalCalendarDate((currentDate) => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(newDate.getMonth() - 1);
+    return newDate;
+  });
+}
 
-    const updatedGoals = goals.map((item) =>
-      item.id === goal.id ? updatedGoal : item
+function goToNextMonth() {
+  setNormalCalendarDate((currentDate) => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(newDate.getMonth() + 1);
+    return newDate;
+  });
+}
+
+function goToCurrentMonth() {
+  setNormalCalendarDate(new Date());
+}
+
+  function toggleComplexTask(dayNumber: number, taskId: string) {
+  if (!goal || !goal.complexPlanDays) return;
+
+  const today = getTodayString();
+
+  const updatedPlanDays = goal.complexPlanDays.map((day) => {
+    if (day.dayNumber !== dayNumber) {
+      return day;
+    }
+
+    const updatedTasks = day.tasks.map((task) =>
+      task.id === taskId ? { ...task, completed: !task.completed } : task
     );
 
-    localStorage.setItem("goalnow-goals", JSON.stringify(updatedGoals));
-    setGoal(updatedGoal);
+    const isDayComplete = updatedTasks.every((task) => task.completed);
+
+    return {
+      ...day,
+      assignedDate: day.assignedDate || today,
+      tasks: updatedTasks,
+      completed: isDayComplete,
+      completedAt: isDayComplete ? new Date().toISOString() : undefined,
+    };
+  });
+
+  let nextActiveDayNumber = goal.activeDayNumber || 1;
+
+  if (dayNumber === nextActiveDayNumber) {
+    const currentDay = updatedPlanDays.find(
+      (day) => day.dayNumber === dayNumber
+    );
+
+    if (currentDay?.completed) {
+      const nextIncompleteDay = updatedPlanDays.find(
+        (day) => !day.completed && day.dayNumber > dayNumber
+      );
+
+      nextActiveDayNumber = nextIncompleteDay
+        ? nextIncompleteDay.dayNumber
+        : dayNumber;
+    }
   }
-  function exportGoalSummary() {
-      if (!goal) return;
 
-      const summary = `
-    GoalNow AI Summary
-
-    Goal: ${goal.name}
-    Category: ${goal.category}
-    Duration: ${goal.duration}
-    Priority: ${goal.priority || "Medium"}
-    Target Date: ${
-      goal.targetDate ? new Date(goal.targetDate).toLocaleDateString() : "Not set"
-    }
-    Daily Time: ${goal.dailyTime}
-    Created: ${new Date(goal.createdAt).toLocaleDateString()}
-
-    Progress:
-    Total Tasks: ${totalTasks}
-    Completed: ${completedTaskCount}
-    Pending: ${pendingTaskCount}
-    Progress: ${progressPercentage}%
-
-    Today's Focus:
-    ${todaysFocus}
-
-    Target Result:
-    ${goal.targetResult}
-    `;
-
-      navigator.clipboard.writeText(summary.trim());
-
-      alert("Goal summary copied to clipboard.");
-    }
-    function markAllComplete() {
-      if (!goal) return;
-
-      const confirmMarkAll = window.confirm(
-        `Are you sure you want to mark all tasks complete for "${goal.name}"?`
-      );
-
-      if (!confirmMarkAll) return;
-
-      const allTaskIndexes = goal.plan.map((_item, index) => index);
-
-      const updatedGoal = {
-        ...goal,
-        completedTasks: allTaskIndexes,
-        updatedAt: new Date().toISOString(),
+  const finalPlanDays = updatedPlanDays.map((day) => {
+    if (
+      day.dayNumber === nextActiveDayNumber &&
+      !day.completed &&
+      !day.assignedDate
+    ) {
+      return {
+        ...day,
+        assignedDate: today,
       };
-
-      const savedGoals = localStorage.getItem("goalnow-goals");
-      const goals: Goal[] = savedGoals ? JSON.parse(savedGoals) : [];
-
-      const updatedGoals = goals.map((item) =>
-        item.id === goal.id ? updatedGoal : item
-      );
-
-      localStorage.setItem("goalnow-goals", JSON.stringify(updatedGoals));
-      setGoal(updatedGoal);
     }
-  function resetProgress() {
+
+    return day;
+  });
+
+  const allDaysCompleted = finalPlanDays.every((day) => day.completed);
+
+  const updatedGoal: Goal = {
+    ...goal,
+    complexPlanDays: finalPlanDays,
+    activeDayNumber: nextActiveDayNumber,
+    status: allDaysCompleted ? "completed" : "active",
+    updatedAt: new Date().toISOString(),
+  };
+
+  saveUpdatedGoal(updatedGoal);
+}
+function recoverMissedDate(dayNumber: number, missedDate: string) {
+  if (!goal || !goal.complexPlanDays) return;
+
+  const confirmRecover = window.confirm(
+    `Mark ${new Date(missedDate).toLocaleDateString()} as recovered? Use this only if you actually completed the study later.`
+  );
+
+  if (!confirmRecover) return;
+
+  const updatedPlanDays = goal.complexPlanDays.map((day) => {
+    if (day.dayNumber !== dayNumber) {
+      return day;
+    }
+
+    return {
+      ...day,
+      missedDates: (day.missedDates || []).filter(
+        (date) => date !== missedDate
+      ),
+    };
+  });
+
+  const updatedGoal: Goal = {
+    ...goal,
+    complexPlanDays: updatedPlanDays,
+    updatedAt: new Date().toISOString(),
+  };
+
+  saveUpdatedGoal(updatedGoal);
+}
+        
+
+  function deleteGoal() {
     if (!goal) return;
 
-    const confirmReset = window.confirm(
-      `Are you sure you want to reset progress for "${goal.name}"?`
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete "${goal.name}"?`
     );
 
-    if (!confirmReset) return;
+    if (!confirmDelete) return;
 
-    const updatedGoal = {
-      ...goal,
-      completedTasks: [],
-      updatedAt: new Date().toISOString(),
-    };
-
-    const savedGoals = localStorage.getItem("goalnow-goals");
-    const goals: Goal[] = savedGoals ? JSON.parse(savedGoals) : [];
-
-    const updatedGoals = goals.map((item) =>
-      item.id === goal.id ? updatedGoal : item
-    );
-
-    localStorage.setItem("goalnow-goals", JSON.stringify(updatedGoals));
-    setGoal(updatedGoal);
+    deleteGoalById(goal.id);
+    router.push("/dashboard");
   }
-        function deleteGoal() {
-            if (!goal) return;
 
-            const confirmDelete = window.confirm(
-                `Are you sure you want to delete "${goal.name}"?`
-            );
+  function exportGoalSummary() {
+    if (!goal) return;
 
-            if (!confirmDelete) return;
+    const summary = `
+GoalNow AI Summary
 
-            const savedGoals = localStorage.getItem("goalnow-goals");
-            const goals: Goal[] = savedGoals ? JSON.parse(savedGoals) : [];
+Goal: ${goal.name}
+Tracker Type: ${goal.trackerType === "normal" ? "Normal Tracker" : "Complex AI Tracker"}
+Category: ${goal.category}
+Duration: ${goal.duration}
+Priority: ${goal.priority || "Medium"}
+Target Date: ${
+      goal.targetDate ? new Date(goal.targetDate).toLocaleDateString() : "Not set"
+    }
 
-            const updatedGoals = goals.filter((item) => item.id !== goal.id);
+Progress: ${getProgressPercentage()}%
 
-            localStorage.setItem("goalnow-goals", JSON.stringify(updatedGoals));
+Created: ${new Date(goal.createdAt).toLocaleDateString()}
+Last Updated: ${
+      goal.updatedAt ? new Date(goal.updatedAt).toLocaleDateString() : "Not updated yet"
+    }
+`;
 
-            router.push("/dashboard");
-            }
+    navigator.clipboard.writeText(summary.trim());
+    alert("Goal summary copied to clipboard.");
+  }
+  function downloadPlanPdf() {
+    if (!goal) return;
+
+    if (goal.trackerType !== "complex") {
+      alert("PDF plan download is only available for complex AI trackers.");
+      return;
+    }
+
+    downloadComplexPlanPdf(goal);
+  }
+
+  function getProgressPercentage() {
+    if (!goal) return 0;
+
+    if (goal.trackerType === "normal") {
+      const checkIns = goal.normalCheckIns || [];
+
+      if (checkIns.length === 0) return 0;
+
+      const completed = checkIns.filter((item) => item.completed).length;
+      return Math.round((completed / checkIns.length) * 100);
+    }
+
+    const planDays = goal.complexPlanDays || [];
+
+    if (planDays.length === 0) return 0;
+
+    const completedDays = planDays.filter((day) => day.completed).length;
+    return Math.round((completedDays / planDays.length) * 100);
+  }
+
+  function getNormalStreak() {
+    if (!goal || goal.trackerType !== "normal") return 0;
+
+    const checkIns = goal.normalCheckIns || [];
+    let streak = 0;
+
+    for (let index = 0; index < 365; index++) {
+      const date = new Date();
+      date.setDate(date.getDate() - index);
+      const dateString = date.toISOString().split("T")[0];
+
+      const checkIn = checkIns.find(
+        (item) => item.date === dateString && item.completed
+      );
+
+      if (checkIn) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+
+    return streak;
+  }
 
   if (!goal) {
     return (
-      <main className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
-        <div className="mx-auto max-w-4xl">
-          <Link href="/dashboard" className="text-sm text-zinc-400 hover:text-white">
+      <>
+        <Navbar />
+
+        <main className="min-h-screen bg-black px-6 py-10 text-white">
+          <section className="mx-auto max-w-4xl">
+            <Link href="/dashboard" className="text-sm text-blue-300">
+              ← Back to Dashboard
+            </Link>
+
+            <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
+              <h1 className="text-3xl font-black">Goal not found</h1>
+              <p className="mt-3 text-zinc-400">
+                This goal may have been deleted or not saved properly.
+              </p>
+            </div>
+          </section>
+        </main>
+
+        <Footer />
+      </>
+    );
+  }
+
+  const progressPercentage = getProgressPercentage();
+  const normalMonthDays = getMonthCalendarDays(normalCalendarDate);
+
+const normalMonthPrefix = `${normalCalendarDate.getFullYear()}-${String(
+  normalCalendarDate.getMonth() + 1
+).padStart(2, "0")}`;
+
+const normalMonthCheckIns =
+  goal.normalCheckIns?.filter((item) => item.date.startsWith(normalMonthPrefix)) ||
+  [];
+
+const normalMonthCompletedCount = normalMonthCheckIns.filter(
+  (item) => item.completed
+).length;
+
+const normalMonthTotalDays = normalMonthDays.filter(Boolean).length;
+
+const normalMonthProgress =
+  normalMonthTotalDays === 0
+    ? 0
+    : Math.round((normalMonthCompletedCount / normalMonthTotalDays) * 100);
+  
+
+  const activeDay = goal.complexPlanDays?.find(
+    (day) => day.dayNumber === goal.activeDayNumber
+  );
+  const activeDayMissedDates = activeDay?.missedDates || [];
+const hasStreakBreak =
+  goal.trackerType === "complex" && activeDayMissedDates.length > 0;
+
+  const completedComplexDays =
+    goal.complexPlanDays?.filter((day) => day.completed).length || 0;
+
+  const totalComplexDays = goal.complexPlanDays?.length || 0;
+
+  const normalCompletedCount =
+    goal.normalCheckIns?.filter((item) => item.completed).length || 0;
+
+  const normalTotalCount = goal.normalCheckIns?.length || 0;
+
+  const todayString = getTodayString();
+
+  const activeDayNotCompleted =
+    goal.trackerType === "complex" && activeDay && !activeDay.completed;
+
+  return (
+    <>
+      <Navbar />
+
+      <main className="min-h-screen bg-black px-6 py-10 text-white">
+        <section className="mx-auto max-w-6xl">
+          <Link href="/dashboard" className="text-sm text-blue-300">
             ← Back to Dashboard
           </Link>
 
-          <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-8">
-            <h1 className="text-3xl font-bold">Goal not found</h1>
-            <p className="mt-3 text-zinc-400">
-              This goal may have been deleted or not saved properly.
-            </p>
+          <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
+            <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-sm text-zinc-400">{goal.category}</p>
+
+                <h1 className="mt-2 text-4xl font-black">{goal.name}</h1>
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <span
+                    className={
+                      goal.trackerType === "normal"
+                        ? "rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-sm font-semibold text-emerald-300"
+                        : "rounded-full border border-blue-400/30 bg-blue-400/10 px-3 py-1 text-sm font-semibold text-blue-300"
+                    }
+                  >
+                    {goal.trackerType === "normal"
+                      ? "Normal Tracker"
+                      : "Complex AI Tracker"}
+                  </span>
+
+                  <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-sm text-zinc-300">
+                    {progressPercentage}% Complete
+                  </span>
+
+                  <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-sm text-zinc-300">
+                    {goal.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                {goal.trackerType === "complex" && (
+                  <>
+                    <Link
+                      href={`/goals/${goal.id}/mentor`}
+                      className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
+                    >
+                      AI Mentor
+                    </Link>
+
+                    <Link
+                      href={`/goals/${goal.id}/test`}
+                      className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
+                    >
+                      Weekly Test
+                    </Link>
+                    <Link
+                      href={`/goals/${goal.id}/weekly-dashboard`}
+                      className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
+                    >
+                      Weekly Dashboard
+                    </Link>
+
+                    <Link
+                      href={`/goals/${goal.id}/report`}
+                      className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
+                    >
+                      Report
+                    </Link>
+                    <button
+                      onClick={downloadPlanPdf}
+                      className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
+                    >
+                      Download Plan PDF
+                    </button>
+                  </>
+                )}
+
+                <Link
+                  href={`/goals/${goal.id}/edit`}
+                  className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
+                >
+                  Edit Goal
+                </Link>
+
+                <button
+                  onClick={exportGoalSummary}
+                  className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
+                >
+                  Export Summary
+                </button>
+
+                <button
+                  onClick={deleteGoal}
+                  className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-400/20"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="text-zinc-400">Progress</span>
+                <span className="font-semibold">{progressPercentage}%</span>
+              </div>
+
+              <div className="h-3 overflow-hidden rounded-full bg-zinc-800">
+                <div
+                  className="h-full rounded-full bg-white"
+                  style={{ width: `${progressPercentage}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="mt-8 grid gap-4 md:grid-cols-4">
+              <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+                <p className="text-sm text-zinc-400">Duration</p>
+                <h2 className="mt-2 text-xl font-bold">{goal.duration}</h2>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+                <p className="text-sm text-zinc-400">Priority</p>
+                <h2 className="mt-2 text-xl font-bold">
+                  {goal.priority || "Medium"}
+                </h2>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+                <p className="text-sm text-zinc-400">Target Date</p>
+                <h2 className="mt-2 text-xl font-bold">
+                  {goal.targetDate
+                    ? new Date(goal.targetDate).toLocaleDateString()
+                    : "Not set"}
+                </h2>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+                <p className="text-sm text-zinc-400">Created</p>
+                <h2 className="mt-2 text-xl font-bold">
+                  {new Date(goal.createdAt).toLocaleDateString()}
+                </h2>
+              </div>
+            </div>
           </div>
-        </div>
-      </main>
-    );
-  }
-  const totalTasks = goal.plan.length;
-  const completedTaskCount = goal.completedTasks.length;
-  const pendingTaskCount = totalTasks - completedTaskCount;
-  const progressPercentage =
-    goal.plan.length === 0
-      ? 0
-      : Math.round((goal.completedTasks.length / goal.plan.length) * 100);
-      const firstIncompleteTask = goal.plan.find(
-        (_item, index) => !goal.completedTasks.includes(index)
+
+          {goal.trackerType === "normal" && (
+            <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <h2 className="text-3xl font-black">Normal Calendar Tracker</h2>
+                  <p className="mt-2 text-zinc-400">
+                    Tick dates for simple goals like saving money, drinking water,
+                    walking, reading, or daily habits.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-4">
+                  <p className="text-sm text-emerald-300">Current Streak</p>
+                  <h3 className="mt-1 text-3xl font-black">
+                    {getNormalStreak()} days
+                  </h3>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+                  <p className="text-sm text-zinc-400">Target</p>
+                  <h3 className="mt-2 text-xl font-bold">
+                    {goal.normalTarget || goal.name}
+                  </h3>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+                  <p className="text-sm text-zinc-400">Frequency</p>
+                  <h3 className="mt-2 text-xl font-bold">
+                    {goal.normalFrequency || "daily"}
+                  </h3>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+                  <p className="text-sm text-zinc-400">Completed</p>
+                  <h3 className="mt-2 text-xl font-bold">
+                    {normalCompletedCount} / {normalTotalCount}
+                  </h3>
+                </div>
+              </div>
+
+              <div className="mt-8">
+  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div>
+      <h3 className="text-2xl font-black">Monthly Calendar</h3>
+      <p className="mt-1 text-sm text-zinc-400">
+        Click any date to tick or untick your normal tracker.
+      </p>
+    </div>
+
+    <div className="flex flex-wrap gap-3">
+      <button
+        onClick={goToPreviousMonth}
+        className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
+      >
+        Previous
+      </button>
+
+      <button
+        onClick={goToCurrentMonth}
+        className="rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-sm font-semibold text-blue-200 transition hover:bg-blue-400/20"
+      >
+        Today
+      </button>
+
+      <button
+        onClick={goToNextMonth}
+        className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
+      >
+        Next
+      </button>
+    </div>
+  </div>
+
+  <div className="mt-5 grid gap-4 md:grid-cols-3">
+    <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+      <p className="text-sm text-zinc-400">Month</p>
+      <h3 className="mt-2 text-xl font-bold">
+        {getMonthTitle(normalCalendarDate)}
+      </h3>
+    </div>
+
+    <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+      <p className="text-sm text-zinc-400">Completed This Month</p>
+      <h3 className="mt-2 text-xl font-bold">
+        {normalMonthCompletedCount}/{normalMonthTotalDays}
+      </h3>
+    </div>
+
+    <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
+      <p className="text-sm text-zinc-400">Monthly Progress</p>
+      <h3 className="mt-2 text-xl font-bold">{normalMonthProgress}%</h3>
+    </div>
+  </div>
+
+  <div className="mt-6 grid grid-cols-7 gap-2 text-center text-sm font-semibold text-zinc-400">
+    <div>Sun</div>
+    <div>Mon</div>
+    <div>Tue</div>
+    <div>Wed</div>
+    <div>Thu</div>
+    <div>Fri</div>
+    <div>Sat</div>
+  </div>
+
+  <div className="mt-3 grid grid-cols-7 gap-2">
+    {normalMonthDays.map((date, index) => {
+      if (!date) {
+        return (
+          <div
+            key={`blank-${index}`}
+            className="min-h-24 rounded-2xl border border-transparent"
+          />
+        );
+      }
+
+      const checkIn = goal.normalCheckIns?.find(
+        (item) => item.date === date
       );
 
-      const todaysFocus = firstIncompleteTask || "All tasks completed. Great work!";
-        let daysRemainingText = "No target date";
+      const isCompleted = checkIn?.completed || false;
+      const isToday = date === todayString;
 
-          if (goal.targetDate) {
-            const today = new Date();
-            const target = new Date(goal.targetDate);
-
-            today.setHours(0, 0, 0, 0);
-            target.setHours(0, 0, 0, 0);
-
-            const differenceInTime = target.getTime() - today.getTime();
-            const differenceInDays = Math.ceil(differenceInTime / (1000 * 60 * 60 * 24));
-
-            if (differenceInDays > 0) {
-              daysRemainingText = `${differenceInDays} day${differenceInDays === 1 ? "" : "s"} left`;
-            } else if (differenceInDays === 0) {
-              daysRemainingText = "Due today";
-            } else {
-              daysRemainingText = `Overdue by ${Math.abs(differenceInDays)} day${
-                Math.abs(differenceInDays) === 1 ? "" : "s"
-              }`;
-            }
+      return (
+        <button
+          key={date}
+          onClick={() => toggleNormalDate(date)}
+          className={
+            isCompleted
+              ? "min-h-24 rounded-2xl border border-emerald-400/40 bg-emerald-400/20 p-3 text-left"
+              : isToday
+              ? "min-h-24 rounded-2xl border border-blue-400/40 bg-blue-400/10 p-3 text-left"
+              : "min-h-24 rounded-2xl border border-white/10 bg-black/40 p-3 text-left hover:bg-white/10"
           }
-          let deadlineColorClass = "text-zinc-400";
+        >
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-semibold text-white">
+              {new Date(date).getDate()}
+            </p>
 
-            if (goal.targetDate) {
-              const today = new Date();
-              const target = new Date(goal.targetDate);
-
-              today.setHours(0, 0, 0, 0);
-              target.setHours(0, 0, 0, 0);
-
-              const differenceInTime = target.getTime() - today.getTime();
-              const differenceInDays = Math.ceil(differenceInTime / (1000 * 60 * 60 * 24));
-
-              if (differenceInDays > 0) {
-                deadlineColorClass = "text-blue-300";
-              } else if (differenceInDays === 0) {
-                deadlineColorClass = "text-yellow-300";
-              } else {
-                deadlineColorClass = "text-red-300";
-              }
-            }
-      let motivationQuote = "";
-
-          if (progressPercentage >= 80) {
-            motivationQuote = "Excellent discipline. You are very close to mastering this weekly plan.";
-          } else if (progressPercentage >= 40) {
-            motivationQuote = "Good progress. Stay consistent and finish the remaining tasks one by one.";
-          } else {
-            motivationQuote = "Start small. Even one completed task today is progress.";
-          }
-      let goalHealthStatus = "";
-      let goalHealthClass = "";
-
-      if (progressPercentage >= 80) {
-        goalHealthStatus = "Excellent";
-        goalHealthClass = "border-emerald-400/30 bg-emerald-400/10 text-emerald-300";
-      } else if (progressPercentage >= 40) {
-        goalHealthStatus = "On Track";
-        goalHealthClass = "border-blue-400/30 bg-blue-400/10 text-blue-300";
-      } else {
-        goalHealthStatus = "Needs Focus";
-        goalHealthClass = "border-yellow-400/30 bg-yellow-400/10 text-yellow-300";
-      }
-  return (
-    <main className="min-h-screen bg-zinc-950 px-6 py-10 text-white">
-      <div className="mx-auto max-w-4xl">
-        <Link href="/dashboard" className="text-sm text-zinc-400 hover:text-white">
-          ← Back to Dashboard
-        </Link>
-
-        <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-6">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <p className="text-sm text-blue-400">{goal.category}</p>
-
-                    <span
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${goalHealthClass}`}
-                    >
-                      {goalHealthStatus}
-                    </span>
-                  </div>
-
-                  <h1 className="mt-2 text-4xl font-bold">{goal.name}</h1>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <Link
-                    href={`/goals/${goal.id}/mentor`}
-                    className="inline-flex items-center justify-center rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-sm font-semibold text-blue-300 transition hover:bg-blue-400/20"
-                  >
-                    AI Mentor
-                  </Link>
-                  <Link
-                    href={`/goals/${goal.id}/report`}
-                    className="inline-flex items-center justify-center rounded-xl border border-purple-400/30 bg-purple-400/10 px-4 py-2 text-sm font-semibold text-purple-300 transition hover:bg-purple-400/20"
-                  >
-                    Report
-                  </Link>
-                  <Link
-                    href={`/goals/${goal.id}/test`}
-                    className="inline-flex items-center justify-center rounded-xl border border-green-400/30 bg-green-400/10 px-4 py-2 text-sm font-semibold text-green-300 transition hover:bg-green-400/20"
-                  >
-                    Weekly Test
-                  </Link>
-                  <Link
-                      href={`/goals/${goal.id}/edit`}
-                      className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
-                    >
-                      Edit Goal
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={exportGoalSummary}
-                    className="inline-flex items-center justify-center rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-400/20"
-                  >
-                    Export Summary
-                  </button>
-                  <button
-                    type="button"
-                    onClick={markAllComplete}
-                    className="inline-flex items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-400/20"
-                  >
-                    Mark All Complete
-                  </button>
-                  <button
-                    type="button"
-                    onClick={resetProgress}
-                    className="inline-flex items-center justify-center rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2 text-sm font-semibold text-yellow-300 transition hover:bg-yellow-400/20"
-                  >
-                    Reset Progress
-                  </button>
-                  <button
-                      type="button"
-                      onClick={deleteGoal}
-                      className="inline-flex items-center justify-center rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-400/20"
-                  >
-                      Delete Goal
-                  </button>
-                </div>
-             </div>
-          
-
-          <div className="mt-6 grid gap-4 md:grid-cols-3 lg:grid-cols-7">
-            <div className="rounded-xl bg-zinc-900 p-4">
-              <p className="text-sm text-zinc-400">Duration</p>
-              <p className="mt-1 font-semibold">{goal.duration}</p>
-            </div>
-            <div className="rounded-xl bg-zinc-900 p-4">
-              <p className="text-sm text-zinc-400">Priority</p>
-              <p className="mt-1 font-semibold">{goal.priority || "Medium"}</p>
-            </div>
-            <div className="rounded-xl bg-zinc-900 p-4">
-              <p className="text-sm text-zinc-400">Target Date</p>
-              <p className="mt-1 font-semibold">
-                {goal.targetDate
-                  ? new Date(goal.targetDate).toLocaleDateString()
-                  : "Not set"}
-              </p>
-            </div>
-            <div className="rounded-xl bg-zinc-900 p-4">
-              <p className="text-sm text-zinc-400">Days Remaining</p>
-              <p className={`mt-1 font-semibold ${deadlineColorClass}`}>
-                {daysRemainingText}
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-zinc-900 p-4">
-              <p className="text-sm text-zinc-400">Daily Time</p>
-              <p className="mt-1 font-semibold">{goal.dailyTime}</p>
-            </div>
-            <div className="rounded-xl bg-zinc-900 p-4">
-              <p className="text-sm text-zinc-400">Created Date</p>
-              <p className="mt-1 font-semibold">
-                {new Date(goal.createdAt).toLocaleDateString()}
-              </p>
-            </div>
-            <div className="rounded-xl bg-zinc-900 p-4">
-              <p className="text-sm text-zinc-400">Last Updated</p>
-              <p className="mt-1 font-semibold">
-                {goal.updatedAt
-                  ? new Date(goal.updatedAt).toLocaleDateString()
-                  : "Not updated yet"}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-6 space-y-4">
-            <div>
-              <h2 className="font-bold">Current Level</h2>
-              <p className="mt-2 rounded-xl bg-zinc-900 p-4 text-sm text-zinc-300">
-                {goal.currentLevel}
-              </p>
-            </div>
-
-            <div>
-              <h2 className="font-bold">Target Result</h2>
-              <p className="mt-2 rounded-xl bg-zinc-900 p-4 text-sm text-zinc-300">
-                {goal.targetResult}
-              </p>
-            </div>
-          </div>
-        </section>
-        <section className="mt-8 rounded-2xl border border-blue-400/30 bg-blue-400/10 p-6">
-          <p className="text-sm font-medium text-blue-300">Today&apos;s Focus</p>
-          <h2 className="mt-2 text-2xl font-bold text-white">{todaysFocus}</h2>
-          <p className="mt-3 text-sm text-blue-100/80">
-            Complete this task first. After ticking it, your next incomplete task will become the new focus.
-          </p>
-        </section>
-        <section className="mt-8 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-6">
-          <p className="text-sm font-medium text-emerald-300">Motivation</p>
-          <h2 className="mt-2 text-2xl font-bold text-white">{motivationQuote}</h2>
-        </section>
-        {goal.latestTestResult && (
-          <section className="mt-8 rounded-2xl border border-purple-400/30 bg-purple-400/10 p-6">
-            <p className="text-sm font-medium text-purple-300">Latest Weekly Test</p>
-            <h2 className="mt-2 text-xl font-bold text-white">
-              {goal.latestTestResult}
-            </h2>
-
-            {goal.latestTestDate && (
-              <p className="mt-3 text-sm text-purple-100/80">
-                Saved on {new Date(goal.latestTestDate).toLocaleDateString()}
-              </p>
-            )}
-          </section>
-        )}
-        <section className="mt-8 grid gap-4 md:grid-cols-4">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <p className="text-sm text-zinc-400">Total Tasks</p>
-            <p className="mt-2 text-3xl font-bold">{totalTasks}</p>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <p className="text-sm text-zinc-400">Completed</p>
-            <p className="mt-2 text-3xl font-bold">{completedTaskCount}</p>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <p className="text-sm text-zinc-400">Pending</p>
-            <p className="mt-2 text-3xl font-bold">{pendingTaskCount}</p>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <p className="text-sm text-zinc-400">Progress</p>
-            <p className="mt-2 text-3xl font-bold">{progressPercentage}%</p>
-          </div>
-        </section>
-
-        <section className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-6">
-          <h2 className="text-2xl font-bold">7-Day Tracker</h2>
-
-          <div className="mt-4 space-y-2">
-            <div className="flex justify-between text-sm text-zinc-400">
-              <span>
-                Completed: {goal.completedTasks.length} / {goal.plan.length}
+            {isToday && (
+              <span className="rounded-full bg-blue-400/20 px-2 py-0.5 text-[10px] font-semibold text-blue-200">
+                Today
               </span>
-              <span>{progressPercentage}% complete</span>
-            </div>
-
-            <div className="h-3 rounded-full bg-zinc-800">
-              <div
-                className="h-3 rounded-full bg-blue-400 transition-all"
-                style={{ width: `${progressPercentage}%` }}
-              />
-            </div>
+            )}
           </div>
 
-          <div className="mt-6 space-y-3">
-            {goal.plan.map((item, index) => (
-              <div
-                key={index}
-                className="flex items-start gap-3 rounded-xl border border-white/10 bg-zinc-900 p-4 text-sm"
-              >
-                <input
-                  type="checkbox"
-                  checked={goal.completedTasks.includes(index)}
-                  onChange={() => toggleTask(index)}
-                  className="mt-1 h-4 w-4"
-                />
+          <h4
+            className={
+              isCompleted
+                ? "mt-3 text-sm font-bold text-emerald-200"
+                : "mt-3 text-sm font-bold text-zinc-400"
+            }
+          >
+            {isCompleted ? "✓ Done" : "Not Done"}
+          </h4>
 
-                <p
-                  className={
-                    goal.completedTasks.includes(index)
-                      ? "text-zinc-500 line-through"
-                      : "text-zinc-200"
-                  }
-                >
-                  {item}
+          {checkIn?.editedAt && (
+            <p className="mt-2 text-[10px] text-zinc-500">
+              Edited {new Date(checkIn.editedAt).toLocaleDateString()}
+            </p>
+          )}
+        </button>
+      );
+    })}
+  </div>
+</div>
+            </div>
+          )}
+
+          {goal.trackerType === "complex" && (
+            <div className="mt-8 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
+                <h2 className="text-3xl font-black">Complex AI Day Tracker</h2>
+
+                <p className="mt-2 text-zinc-400">
+                  Your learning day only moves forward when the current day is
+                  completed. If you miss today, tomorrow will still show the same
+                  active day.
                 </p>
+
+                {activeDayNotCompleted && (
+                  <div className="mt-5 rounded-2xl border border-yellow-400/30 bg-yellow-400/10 p-4 text-yellow-200">
+                    Current Day {goal.activeDayNumber} is not completed yet. If
+                    you do not complete it today, the next calendar day will still
+                    continue from Day {goal.activeDayNumber}.
+                  </div>
+                )}
+                {hasStreakBreak && activeDay && (
+                  <div className="mt-5 rounded-2xl border border-red-400/30 bg-red-400/10 p-5">
+                    <h3 className="text-xl font-black text-red-200">
+                      Streak Break Detected
+                    </h3>
+
+                    <p className="mt-2 text-red-100">
+                      You missed Day {activeDay.dayNumber} on{" "}
+                      {activeDayMissedDates.length} date
+                      {activeDayMissedDates.length === 1 ? "" : "s"}. Your learning day will
+                      not move forward until this active day is completed.
+                    </p>
+
+                    <div className="mt-4 space-y-3">
+                      {activeDayMissedDates.map((missedDate) => (
+                        <div
+                          key={missedDate}
+                          className="flex flex-col gap-3 rounded-xl border border-red-400/20 bg-black/30 p-4 md:flex-row md:items-center md:justify-between"
+                        >
+                          <div>
+                            <p className="font-semibold text-white">
+                              Missed: {new Date(missedDate).toLocaleDateString()}
+                            </p>
+                            <p className="text-sm text-zinc-400">
+                              You can recover this only if you honestly completed that day later.
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={() => recoverMissedDate(activeDay.dayNumber, missedDate)}
+                            className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
+                          >
+                            Mark Recovered
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {activeDay && (
+                  <div className="mt-6 rounded-3xl border border-blue-400/30 bg-blue-400/10 p-6">
+                    <p className="text-sm font-semibold text-blue-300">
+                      Active Day {activeDay.dayNumber}
+                    </p>
+
+                    <h3 className="mt-2 text-2xl font-black">
+                      {activeDay.title}
+                    </h3>
+
+                    <p className="mt-2 text-zinc-300">{activeDay.focus}</p>
+
+                    <div className="mt-5 space-y-3">
+                      {activeDay.tasks.map((task) => (
+                        <label
+                          key={task.id}
+                          className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-black/40 p-4 hover:bg-black/60"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={task.completed}
+                            onChange={() =>
+                              toggleComplexTask(activeDay.dayNumber, task.id)
+                            }
+                            className="mt-1 h-5 w-5"
+                          />
+
+                          <span
+                            className={
+                              task.completed
+                                ? "text-zinc-500 line-through"
+                                : "text-white"
+                            }
+                          >
+                            {task.title}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-8">
+                  <h3 className="text-xl font-bold">Full Plan Days</h3>
+
+                  <div className="mt-4 space-y-4">
+                    {goal.complexPlanDays?.map((day) => (
+                      <div
+                        key={day.dayNumber}
+                        className={
+                          day.dayNumber === goal.activeDayNumber
+                            ? "rounded-2xl border border-blue-400/40 bg-blue-400/10 p-5"
+                            : day.completed
+                            ? "rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-5"
+                            : "rounded-2xl border border-white/10 bg-black/40 p-5"
+                        }
+                      >
+                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <p className="text-sm text-zinc-400">
+                              Day {day.dayNumber}
+                            </p>
+
+                            <h4 className="mt-1 text-xl font-bold">
+                              {day.title}
+                            </h4>
+
+                            <p className="mt-2 text-zinc-400">{day.focus}</p>
+                          </div>
+
+                          <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-sm">
+                            {day.completed
+                              ? "Completed"
+                              : day.dayNumber === goal.activeDayNumber
+                              ? "Active"
+                              : "Locked / Upcoming"}
+                          </span>
+                        </div>
+
+                        <div className="mt-4 space-y-2">
+                          {day.tasks.map((task) => (
+                            <label
+                              key={task.id}
+                              className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-black/30 p-3"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={task.completed}
+                                onChange={() =>
+                                  toggleComplexTask(day.dayNumber, task.id)
+                                }
+                                className="mt-1 h-4 w-4"
+                              />
+
+                              <span
+                                className={
+                                  task.completed
+                                    ? "text-zinc-500 line-through"
+                                    : "text-zinc-200"
+                                }
+                              >
+                                {task.title}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
+
+              <div className="space-y-6">
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+                  <h3 className="text-2xl font-black">Study Dashboard</h3>
+
+                  <div className="mt-5 space-y-4">
+                    <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                      <p className="text-sm text-zinc-400">Active Learning Day</p>
+                      <h4 className="mt-1 text-2xl font-bold">
+                        Day {goal.activeDayNumber || 1}
+                      </h4>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                      <p className="text-sm text-zinc-400">Completed Days</p>
+                      <h4 className="mt-1 text-2xl font-bold">
+                        {completedComplexDays} / {totalComplexDays}
+                      </h4>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                      <p className="text-sm text-zinc-400">Missed Dates</p>
+                      <h4 className="mt-1 text-2xl font-bold">
+                        {activeDayMissedDates.length}
+                      </h4>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-black/40 p-4">
+                      <p className="text-sm text-zinc-400">Daily Time</p>
+                      <h4 className="mt-1 text-2xl font-bold">
+                        {goal.dailyTime || "Not set"}
+                      </h4>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+                  <h3 className="text-2xl font-black">Current Level</h3>
+                  <p className="mt-3 text-zinc-400">
+                    {goal.currentLevel || "Not added"}
+                  </p>
+                </div>
+
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+                  <h3 className="text-2xl font-black">Target Result</h3>
+                  <p className="mt-3 text-zinc-400">
+                    {goal.targetResult || "Not added"}
+                  </p>
+                </div>
+
+                {goal.latestTestResult && (
+                  <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+                    <h3 className="text-2xl font-black">Latest Weekly Test</h3>
+                    <p className="mt-3 text-zinc-300">
+                      {goal.latestTestResult}
+                    </p>
+
+                    {goal.latestTestDate && (
+                      <p className="mt-2 text-sm text-zinc-500">
+                        Saved on{" "}
+                        {new Date(goal.latestTestDate).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </section>
-      </div>
-    </main>
+      </main>
+
+      <Footer />
+    </>
   );
 }

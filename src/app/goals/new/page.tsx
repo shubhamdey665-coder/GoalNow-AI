@@ -4,6 +4,12 @@ import Link from "next/link";
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { addGoal , getGoals } from "@/lib/goalStorage";
+import {
+  convertAiPlanToComplexPlanDays,
+  generateComplexStarterPlan,
+} from "@/lib/planGenerator";
+import type { Goal } from "@/types/goal";
 
 export default function NewGoalPage() {
   const [goalName, setGoalName] = useState("");
@@ -18,6 +24,10 @@ export default function NewGoalPage() {
   const [plan, setPlan] = useState<string[]>([]);
   const [completedTasks, setCompletedTasks] = useState<number[]>([]);
   const [goalSaved, setGoalSaved] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [trackerType, setTrackerType] = useState<"normal" | "complex">("complex");
+  const [normalTarget, setNormalTarget] = useState("");
+  const [normalFrequency, setNormalFrequency] = useState<"daily" | "weekly">("daily");
   const goalNameError =
   goalName.trim().length > 0 && goalName.trim().length < 3
     ? "Goal name must be at least 3 characters."
@@ -114,9 +124,32 @@ export default function NewGoalPage() {
     setPlan([]);
     setCompletedTasks([]);
     setGoalSaved(false);
-  }
+    setTrackerType("complex");
+    setNormalTarget("");
+    setNormalFrequency("daily");
+      }
   function validateGoalForm() {
-    if (!goalName.trim() || !dailyTime.trim() || !currentLevel.trim() || !targetResult.trim()) {
+    if (!goalName.trim()) {
+      return "Please enter a goal name.";
+    }
+
+    if (trackerType === "normal") {
+      if (!normalTarget.trim()) {
+        return "Please enter your simple tracker target.";
+      }
+
+      if (goalName.trim().length < 3) {
+        return "Goal name must be at least 3 characters.";
+      }
+
+      if (targetDateError) {
+        return targetDateError;
+      }
+
+      return "";
+    }
+
+    if (!dailyTime.trim() || !currentLevel.trim() || !targetResult.trim()) {
       return "Please fill all required fields before generating your AI plan.";
     }
 
@@ -141,83 +174,135 @@ export default function NewGoalPage() {
     }
     return "";
   }
-  function handleGeneratePlan() {
-      if (goalNameError) {
-        setMessage(goalNameError);
-        setPlan([]);
-        setCompletedTasks([]);
-        setGoalSaved(false);
-        return;
-      }
-      if (targetDateError) {
-        setMessage(targetDateError);
-        setPlan([]);
-        setCompletedTasks([]);
-        setGoalSaved(false);
-        return;
-    }
-    const validationError = validateGoalForm();
-
-    if (validationError) {
-      setMessage(validationError);
-      setPlan([]);
-      setCompletedTasks([]);
-      setGoalSaved(false);
-      return;
-    }
-
-    const samplePlan = [
-        `Day 1: Understand your goal "${goalName}" and prepare your study/work setup.`,
-        `Day 2: Learn or revise the most basic foundation required for ${category}.`,
-        `Day 3: Practice one small task for your goal for ${dailyTime}.`,
-        `Day 4: Revise Day 1 to Day 3 and fix weak points.`,
-        `Day 5: Complete one mini practical project or workout/task session.`,
-        `Day 6: Take a short self-test and write mistakes.`,
-        `Day 7: Weekly review, progress report, and next-week planning.`,
-    ];
-
-    const newGoal = {
-        id: Date.now().toString(),
-        name: goalName,
-        category: category,
-        duration: duration,
-        priority: priority,
-        targetDate: targetDate,
-        dailyTime: dailyTime,
-        currentLevel: currentLevel,
-        targetResult: targetResult,
-        plan: samplePlan,
-        completedTasks: [],
-        createdAt: new Date().toISOString(),
-    };
-
-      const existingGoals = localStorage.getItem("goalnow-goals");
-
-        const goals = existingGoals ? JSON.parse(existingGoals) : [];
-
-        const duplicateGoal = goals.find(
-          (goal: { name: string }) =>
-            goal.name.toLowerCase().trim() === goalName.toLowerCase().trim()
-        );
-
-        if (duplicateGoal) {
-          setMessage("A goal with this name already exists. Please use a different name.");
-          setPlan([]);
-          setCompletedTasks([]);
-          setGoalSaved(false);
-          return;
-        }
-
-        goals.push(newGoal);
-
-        localStorage.setItem("goalnow-goals", JSON.stringify(goals));
-
-    setPlan(samplePlan);
+  async function handleGeneratePlan() {
+  if (goalNameError) {
+    setMessage(goalNameError);
+    setPlan([]);
     setCompletedTasks([]);
-    setMessage(`Your 7-day starter plan for ${goalName} is saved successfully.`);
-    setGoalSaved(true);
-    }
+    setGoalSaved(false);
+    return;
+  }
 
+  if (targetDateError) {
+    setMessage(targetDateError);
+    setPlan([]);
+    setCompletedTasks([]);
+    setGoalSaved(false);
+    return;
+  }
+
+  const validationError = validateGoalForm();
+
+  if (validationError) {
+    setMessage(validationError);
+    setPlan([]);
+    setCompletedTasks([]);
+    setGoalSaved(false);
+    return;
+  }
+
+  const goals = getGoals();
+
+  const duplicateGoal = goals.find(
+    (goal) =>
+      goal.name.toLowerCase().trim() === goalName.toLowerCase().trim()
+  );
+
+  if (duplicateGoal) {
+    setMessage("A goal with this name already exists. Please use a different name.");
+    setPlan([]);
+    setCompletedTasks([]);
+    setGoalSaved(false);
+    return;
+  }
+
+  setIsGenerating(true);
+
+  let complexPlanDays =
+    trackerType === "complex"
+      ? generateComplexStarterPlan(
+          goalName,
+          category,
+          dailyTime,
+          currentLevel,
+          targetResult
+        )
+      : undefined;
+
+  if (trackerType === "complex") {
+    try {
+      const response = await fetch("/api/generate-plan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          goalName,
+          category,
+          duration,
+          dailyTime,
+          currentLevel,
+          targetResult,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.planDays) {
+        complexPlanDays = convertAiPlanToComplexPlanDays(data.planDays);
+      } else {
+        console.warn("Gemini plan failed, using local fallback plan:", data.error);
+      }
+    } catch (error) {
+      console.warn("Gemini plan failed, using local fallback plan:", error);
+    }
+  }
+
+  const newGoal: Goal = {
+    id: Date.now().toString(),
+    name: goalName,
+    category,
+    trackerType,
+
+    duration,
+    priority,
+    targetDate,
+
+    dailyTime: trackerType === "complex" ? dailyTime : undefined,
+    currentLevel: trackerType === "complex" ? currentLevel : undefined,
+    targetResult: trackerType === "complex" ? targetResult : undefined,
+
+    normalTarget: trackerType === "normal" ? normalTarget : undefined,
+    normalFrequency: trackerType === "normal" ? normalFrequency : undefined,
+    normalCheckIns: trackerType === "normal" ? [] : undefined,
+
+    complexPlanDays,
+    activeDayNumber: trackerType === "complex" ? 1 : undefined,
+
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    status: "active",
+  };
+
+  addGoal(newGoal);
+
+  if (trackerType === "complex") {
+    const previewPlan =
+      newGoal.complexPlanDays?.map(
+        (day) => `Day ${day.dayNumber}: ${day.title} - ${day.focus}`
+      ) || [];
+
+    setPlan(previewPlan);
+    setMessage(`Your complex AI tracker for ${goalName} is saved successfully with a real Gemini-generated plan.`);
+  } else {
+    setPlan([]);
+    setMessage(`Your normal tracker for ${goalName} is saved successfully.`);
+  }
+
+  setCompletedTasks([]);
+  setGoalSaved(true);
+  setIsGenerating(false);
+}
   function toggleTask(index: number) {
     if (completedTasks.includes(index)) {
       setCompletedTasks(completedTasks.filter((taskIndex) => taskIndex !== index));
@@ -325,6 +410,41 @@ export default function NewGoalPage() {
 
         <form className="mt-8 space-y-6 rounded-2xl border border-white/10 bg-white/5 p-6">
           <div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+              <h2 className="text-xl font-bold">Choose Tracker Type</h2>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setTrackerType("normal")}
+                  className={
+                    trackerType === "normal"
+                      ? "rounded-xl border border-emerald-400 bg-emerald-400/20 p-4 text-left"
+                      : "rounded-xl border border-white/10 bg-zinc-900 p-4 text-left"
+                  }
+                >
+                  <h3 className="font-bold">Normal Tracker</h3>
+                  <p className="mt-2 text-sm text-zinc-400">
+                    Best for saving money, drinking water, walking, reading, and simple habits.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTrackerType("complex")}
+                  className={
+                    trackerType === "complex"
+                      ? "rounded-xl border border-blue-400 bg-blue-400/20 p-4 text-left"
+                      : "rounded-xl border border-white/10 bg-zinc-900 p-4 text-left"
+                  }
+                >
+                  <h3 className="font-bold">Complex AI Tracker</h3>
+                  <p className="mt-2 text-sm text-zinc-400">
+                    Best for Google job preparation, exams, English, fitness, and long goals.
+                  </p>
+                </button>
+              </div>
+            </div>
             <label className="text-sm font-medium">Goal Name</label>
             <input
               type="text"
@@ -405,6 +525,36 @@ export default function NewGoalPage() {
             )}
           </div>
 
+          
+            {trackerType === "normal" && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="text-sm font-medium">Simple Target</label>
+                  <input
+                    value={normalTarget}
+                    onChange={(event) => setNormalTarget(event.target.value)}
+                    placeholder="Example: Save ₹100 this week"
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-emerald-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Frequency</label>
+                  <select
+                    value={normalFrequency}
+                    onChange={(event) =>
+                      setNormalFrequency(event.target.value as "daily" | "weekly")
+                    }
+                    className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-emerald-400"
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                  </select>
+                </div>
+              </div>
+            )}
+        {trackerType === "complex" && (
+        <>
           <div>
             <label className="text-sm font-medium">Daily Available Time</label>
             <input
@@ -435,14 +585,21 @@ export default function NewGoalPage() {
               className="mt-2 min-h-28 w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-blue-400"
             />
           </div>
+         </>
+        )}
 
           <div className="grid gap-3 md:grid-cols-2">
             <button
               type="button"
               onClick={handleGeneratePlan}
-              className="rounded-xl bg-white px-5 py-3 font-semibold text-black transition hover:bg-zinc-200"
+              disabled={isGenerating}
+              className="rounded-xl bg-white px-5 py-3 font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Generate AI Plan
+              {isGenerating
+                ? "Generating..."
+                : trackerType === "normal"
+                ? "Create Normal Tracker"
+                : "Generate AI Plan"}
             </button>
 
             <button
