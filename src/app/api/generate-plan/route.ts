@@ -14,6 +14,12 @@ function cleanJsonText(text: string) {
     .replace(/```/g, "")
     .trim();
 }
+function getAiPlanDayCount(duration: string) {
+  if (duration === "7 Days") return 7;
+  if (duration === "30 Days") return 30;
+
+  return 30;
+}
 
 export async function POST(request: Request) {
   try {
@@ -45,6 +51,7 @@ export async function POST(request: Request) {
     const ai = new GoogleGenAI({
       apiKey: process.env.GEMINI_API_KEY,
     });
+    const aiPlanDayCount = getAiPlanDayCount(duration);
 
     const prompt = `
 You are GoalNow AI, a realistic goal planning mentor.
@@ -62,7 +69,7 @@ Rules:
 - Return only valid JSON.
 - No markdown.
 - No explanation outside JSON.
-- Create 14 days only.
+- Create exactly ${aiPlanDayCount} days only.
 - Each day must have exactly 4 tasks.
 - Tasks must be realistic for the user's current level.
 - Do not make impossible plans.

@@ -11,13 +11,14 @@ import {
 import {
   convertAiPlanToComplexPlanDays,
   generateComplexStarterPlan,
+  getPlanDayCount,
 } from "@/lib/planGenerator";
 import type { Goal } from "@/types/goal";
 
 export default function NewGoalPage() {
   const [goalName, setGoalName] = useState("");
   const [category, setCategory] = useState("Career / Job");
-  const [duration, setDuration] = useState("7 Days");
+  const [duration, setDuration] = useState("1 Year");
   const [priority, setPriority] = useState("Medium");
   const [targetDate, setTargetDate] = useState("");
   const [dailyTime, setDailyTime] = useState("");
@@ -52,13 +53,16 @@ export default function NewGoalPage() {
   plan.length === 0 ? 0 : Math.round((completedTasks.length / plan.length) * 100);
 
   function useGoalTemplate(templateName: string) {
-      const sevenDaysFromNow = new Date();
-        sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-        const formattedTargetDate = sevenDaysFromNow.toISOString().split("T")[0];
+      const templateDuration = "1 Year";
+      const targetDateFromDuration = new Date();
+      targetDateFromDuration.setDate(
+        targetDateFromDuration.getDate() + getPlanDayCount(templateDuration)
+      );
+      const formattedTargetDate = targetDateFromDuration.toISOString().split("T")[0];
     if (templateName === "google") {
       setGoalName("Google SWE Preparation");
       setCategory("Career / Job");
-      setDuration("7 Days");
+      setDuration(templateDuration);
       setPriority("High");
       setTargetDate(formattedTargetDate);
       setDailyTime("4 hours daily");
@@ -69,7 +73,7 @@ export default function NewGoalPage() {
     if (templateName === "fat-burning") {
       setGoalName("Fat Burning");
       setCategory("Fitness / Fat Burning");
-      setDuration("7 Days");
+      setDuration(templateDuration);
       setPriority("High");
       setTargetDate(formattedTargetDate);
       setDailyTime("1 hour daily");
@@ -80,7 +84,7 @@ export default function NewGoalPage() {
     if (templateName === "english") {
       setGoalName("English Mastery");
       setCategory("English / Communication");
-      setDuration("7 Days");
+      setDuration(templateDuration);
       setPriority("Medium");
       setTargetDate(formattedTargetDate);
       setDailyTime("30 minutes daily");
@@ -91,7 +95,7 @@ export default function NewGoalPage() {
     if (templateName === "business") {
       setGoalName("Business Growth");
       setCategory("Business / Money");
-      setDuration("7 Days");
+      setDuration(templateDuration);
       setPriority("Medium");
       setTargetDate(formattedTargetDate);
       setDailyTime("1 hour daily");
@@ -102,7 +106,7 @@ export default function NewGoalPage() {
     if (templateName === "exam") {
       setGoalName("Exam Preparation");
       setCategory("Education / Exam");
-      setDuration("7 Days");
+      setDuration(templateDuration);
       setPriority("High");
       setTargetDate(formattedTargetDate);
       setDailyTime("3 hours daily");
@@ -117,7 +121,7 @@ export default function NewGoalPage() {
   function resetForm() {
     setGoalName("");
     setCategory("Career / Job");
-    setDuration("7 Days");
+    setDuration("1 Year");
     setPriority("Medium");
     setTargetDate("");
     setDailyTime("");
@@ -240,6 +244,7 @@ export default function NewGoalPage() {
       ? generateComplexStarterPlan(
           goalName,
           category,
+          duration,
           dailyTime,
           currentLevel,
           targetResult
@@ -265,16 +270,37 @@ export default function NewGoalPage() {
 
       const data = await response.json();
 
-      if (response.ok && data.planDays) {
-        complexPlanDays = convertAiPlanToComplexPlanDays(data.planDays);
-      } else {
+     if (response.ok && data.planDays) {
+      complexPlanDays = convertAiPlanToComplexPlanDays(
+        data.planDays,
+        duration,
+        dailyTime
+      );
+    } else {
         console.warn("Gemini plan failed, using local fallback plan:", data.error);
       }
     } catch (error) {
       console.warn("Gemini plan failed, using local fallback plan:", error);
     }
   }
+if (trackerType === "complex" && complexPlanDays) {
+  const expectedDayCount = getPlanDayCount(duration);
 
+  if (complexPlanDays.length !== expectedDayCount) {
+    complexPlanDays = convertAiPlanToComplexPlanDays(
+      complexPlanDays.map((day) => ({
+        dayNumber: day.dayNumber,
+        title: day.title,
+        focus: day.focus,
+        tasks: day.tasks.map((task) => task.title),
+      })),
+      duration,
+      dailyTime
+    );
+  }
+
+  console.log("GoalNow final saved plan days:", complexPlanDays.length);
+}
   const newGoal: Goal = {
     id: Date.now().toString(),
     name: goalName,
@@ -418,7 +444,7 @@ export default function NewGoalPage() {
             },
             {
               title: "2. Generate Plan",
-              text: "Create a 7-day starter roadmap based on your goal details.",
+              text: "Create a roadmap plan upto 1 yearbased on your goal details.",
             },
             {
               title: "3. Track Tasks",
@@ -522,7 +548,7 @@ export default function NewGoalPage() {
               <option>3 Months</option>
               <option>6 Months</option>
               <option>1 Year</option>
-              <option>4 Years</option>
+              
             </select>
           </div>
           <div>
@@ -658,7 +684,7 @@ export default function NewGoalPage() {
 
           {plan.length > 0 && (
             <div className="space-y-4 rounded-2xl border border-white/10 bg-zinc-900 p-5">
-              <h2 className="text-xl font-bold">Your 7-Day AI Starter Plan</h2>
+              <h2 className="text-xl font-bold">Your AI Plan Preview</h2>
 
              <div className="space-y-2">
   <div className="flex justify-between text-sm text-zinc-400">

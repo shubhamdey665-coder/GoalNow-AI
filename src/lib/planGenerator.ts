@@ -6,10 +6,12 @@ type AiPlanDay = {
   tasks: string[];
 };
 
-export function convertAiPlanToComplexPlanDays(
-  aiPlanDays: AiPlanDay[]
+ export function convertAiPlanToComplexPlanDays(
+  aiPlanDays: AiPlanDay[],
+  duration?: string,
+  dailyTime = ""
 ): ComplexPlanDay[] {
-  return aiPlanDays.map((day) => ({
+  const convertedDays = aiPlanDays.map((day) => ({
     dayNumber: day.dayNumber,
     title: day.title,
     focus: day.focus,
@@ -21,6 +23,16 @@ export function convertAiPlanToComplexPlanDays(
       completed: false,
     })),
   }));
+
+  if (!duration) {
+    return convertedDays;
+  }
+
+  return expandPlanToDuration(
+    convertedDays,
+    getPlanDayCount(duration),
+    dailyTime
+  );
 }
 
 function createTask(title: string) {
@@ -46,15 +58,78 @@ function createDay(
     tasks: tasks.map((task) => createTask(task)),
   };
 }
+export function getPlanDayCount(duration: string) {
+  if (duration === "7 Days") return 7;
+  if (duration === "30 Days") return 30;
+  if (duration === "3 Months") return 90;
+  if (duration === "6 Months") return 180;
+  if (duration === "1 Year") return 365;
+
+  return 7;
+}
+
+function getPlanPhase(dayNumber: number) {
+  if (dayNumber <= 30) return "Foundation";
+  if (dayNumber <= 90) return "Core Skill Building";
+  if (dayNumber <= 180) return "Practice + Projects";
+  if (dayNumber <= 270) return "Advanced Growth";
+  return "Revision + Performance";
+}
+
+export function expandPlanToDuration(
+  basePlanDays: ComplexPlanDay[],
+  totalDays: number,
+  dailyTime: string
+): ComplexPlanDay[] {
+  if (basePlanDays.length === 0) return [];
+
+  const safeTotalDays = Math.min(totalDays, 365);
+
+  return Array.from({ length: safeTotalDays }, (_, index) => {
+    const dayNumber = index + 1;
+    const baseDay = basePlanDays[index % basePlanDays.length];
+    const weekNumber = Math.ceil(dayNumber / 7);
+    const phase = getPlanPhase(dayNumber);
+
+    if (dayNumber % 7 === 0) {
+      return createDay(
+        dayNumber,
+        `Week ${weekNumber} Test + Review`,
+        `Review your Week ${weekNumber} progress and fix weak areas.`,
+        [
+          "Take a realistic weekly test based on this week's tasks.",
+          "Write your score and mistakes honestly.",
+          "Revise the weakest topics from this week.",
+          "Plan next week's improvement target.",
+        ]
+      );
+    }
+
+    return createDay(
+      dayNumber,
+      `Day ${dayNumber}: ${phase} - ${baseDay.title}`,
+      `${phase}: ${baseDay.focus}`,
+      [
+       baseDay.tasks[0]?.title || `Work for ${dailyTime || "your planned time"} with full focus.`,
+        baseDay.tasks[1]?.title || "Study one important topic deeply.",
+        baseDay.tasks[2]?.title || "Complete one practical task or problem set.",
+        "Write a short progress note and mark your weak point.",
+      ]
+    );
+  });
+}
 
 export function generateComplexStarterPlan(
   goalName: string,
   category: string,
+  duration: string,
   dailyTime: string,
   currentLevel: string,
   targetResult: string
 ): ComplexPlanDay[] {
   const lowerGoal = `${goalName} ${category} ${targetResult}`.toLowerCase();
+
+  let basePlanDays: ComplexPlanDay[];
 
   if (
     lowerGoal.includes("google") ||
@@ -63,38 +138,44 @@ export function generateComplexStarterPlan(
     lowerGoal.includes("coding") ||
     lowerGoal.includes("dsa")
   ) {
-    return generateGoogleJobPlan(dailyTime, currentLevel, targetResult);
-  }
-
-  if (
+    basePlanDays = generateGoogleJobPlan(dailyTime, currentLevel, targetResult);
+  } else if (
     lowerGoal.includes("fitness") ||
     lowerGoal.includes("fat") ||
     lowerGoal.includes("weight") ||
     lowerGoal.includes("gym")
   ) {
-    return generateFitnessPlan(dailyTime, currentLevel, targetResult);
-  }
-
-  if (
+    basePlanDays = generateFitnessPlan(dailyTime, currentLevel, targetResult);
+  } else if (
     lowerGoal.includes("english") ||
     lowerGoal.includes("communication") ||
     lowerGoal.includes("grammar") ||
     lowerGoal.includes("speaking")
   ) {
-    return generateEnglishPlan(goalName,dailyTime, currentLevel, targetResult);
-  }
-
-  if (
+    basePlanDays = generateEnglishPlan(goalName, dailyTime, currentLevel, targetResult);
+  } else if (
     lowerGoal.includes("business") ||
     lowerGoal.includes("money") ||
     lowerGoal.includes("shop") ||
     lowerGoal.includes("service")
   ) {
-    return generateBusinessPlan(dailyTime, currentLevel, targetResult);
+    basePlanDays = generateBusinessPlan(dailyTime, currentLevel, targetResult);
+  } else {
+    basePlanDays = generateGeneralComplexPlan(
+      goalName,
+      dailyTime,
+      currentLevel,
+      targetResult
+    );
   }
 
-  return generateGeneralComplexPlan(goalName, dailyTime, currentLevel, targetResult);
+  return expandPlanToDuration(
+    basePlanDays,
+    getPlanDayCount(duration),
+    dailyTime
+  );
 }
+
 
 function generateGoogleJobPlan(
   dailyTime: string,
@@ -492,4 +573,60 @@ function generateGeneralComplexPlan(
       "Prepare next week plan.",
     ]),
   ];
+}
+export function expandPlanToOneYear(basePlanDays: ComplexPlanDay[]): ComplexPlanDay[] {
+  if (basePlanDays.length === 0) return [];
+
+  return Array.from({ length: 365 }, (_, index) => {
+    const dayNumber = index + 1;
+    const baseDay = basePlanDays[index % basePlanDays.length];
+    const weekNumber = Math.ceil(dayNumber / 7);
+
+    if (dayNumber % 7 === 0) {
+      return {
+        ...baseDay,
+        dayNumber,
+        title: `Week ${weekNumber} Test + Review`,
+        focus: `Review Week ${weekNumber}, test yourself, and improve weak areas.`,
+        completed: false,
+        missedDates: [],
+        tasks: [
+          {
+            id: crypto.randomUUID(),
+            title: "Take a weekly test based on this week's learning.",
+            completed: false,
+          },
+          {
+            id: crypto.randomUUID(),
+            title: "Review all mistakes and write what went wrong.",
+            completed: false,
+          },
+          {
+            id: crypto.randomUUID(),
+            title: "Revise the weakest topics from this week.",
+            completed: false,
+          },
+          {
+            id: crypto.randomUUID(),
+            title: "Write next week's improvement target.",
+            completed: false,
+          },
+        ],
+      };
+    }
+
+    return {
+      ...baseDay,
+      dayNumber,
+      title: `Day ${dayNumber}: ${baseDay.title}`,
+      focus: baseDay.focus,
+      completed: false,
+      missedDates: [],
+      tasks: baseDay.tasks.map((task) => ({
+        ...task,
+        id: crypto.randomUUID(),
+        completed: false,
+      })),
+    };
+  });
 }
