@@ -4,20 +4,53 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { getGoals, saveGoals } from "@/lib/goalStorage";
+import {
+  deleteGoalFromSupabase,
+  getGoalsFromSupabase,
+} from "@/lib/goals/supabaseGoals";
 import type { Goal } from "@/types/goal";
 
 export default function DashboardPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [isLoadingGoals, setIsLoadingGoals] = useState(true);
+  const [goalError, setGoalError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
   const [selectedTrackerType, setSelectedTrackerType] = useState("All Trackers");
   const [sortBy, setSortBy] = useState("Newest First");
 
-  useEffect(() => {
-    const savedGoals = getGoals();
-    setGoals(savedGoals);
-  }, []);
+ useEffect(() => {
+  let isMounted = true;
+
+  async function loadGoals() {
+    setIsLoadingGoals(true);
+    setGoalError("");
+
+    try {
+      const supabaseGoals = await getGoalsFromSupabase();
+
+      if (!isMounted) return;
+
+      setGoals(supabaseGoals);
+    } catch (error) {
+      if (!isMounted) return;
+
+      setGoalError(
+        error instanceof Error ? error.message : "Could not load your goals."
+      );
+    } finally {
+      if (!isMounted) return;
+
+      setIsLoadingGoals(false);
+    }
+  }
+
+  loadGoals();
+
+  return () => {
+    isMounted = false;
+  };
+}, []);
 
   function getGoalProgress(goal: Goal) {
     if (goal.trackerType === "normal") {
@@ -133,20 +166,33 @@ export default function DashboardPage() {
     }`;
   }
 
-  function clearAllGoals() {
-    const confirmClear = window.confirm(
-      "Are you sure you want to delete all goals? This cannot be undone."
+  async function clearAllGoals() {
+  const confirmClear = window.confirm(
+    "Are you sure you want to delete all goals? This cannot be undone."
+  );
+
+  if (!confirmClear) return;
+
+  const previousGoals = goals;
+
+  setGoals([]);
+  setSearchTerm("");
+  setSelectedCategory("All Categories");
+  setSelectedTrackerType("All Trackers");
+  setSortBy("Newest First");
+  setGoalError("");
+
+  try {
+    await Promise.all(
+      previousGoals.map((goal) => deleteGoalFromSupabase(goal.id))
     );
-
-    if (!confirmClear) return;
-
-    saveGoals([]);
-    setGoals([]);
-    setSearchTerm("");
-    setSelectedCategory("All Categories");
-    setSelectedTrackerType("All Trackers");
-    setSortBy("Newest First");
+  } catch (error) {
+    setGoals(previousGoals);
+    setGoalError(
+      error instanceof Error ? error.message : "Could not delete all goals."
+    );
   }
+}
 
   return (
     <>
@@ -182,6 +228,11 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
+          {goalError && (
+            <div className="mb-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
+              {goalError}
+            </div>
+          )}
 
           <div className="mb-8 grid gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 md:grid-cols-2 lg:grid-cols-4">
             <input
@@ -267,7 +318,15 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {goals.length === 0 ? (
+          {isLoadingGoals ? (
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
+              <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+              <h2 className="text-2xl font-bold">Loading your goals...</h2>
+              <p className="mt-3 text-zinc-400">
+                Fetching your account-based goals from Supabase.
+              </p>
+            </div>
+          ) : goals.length === 0 ? (
             <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-400/10 text-2xl">
                 ✦

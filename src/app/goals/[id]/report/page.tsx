@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { getGoalById } from "@/lib/goalStorage";
+import { getGoalByIdFromSupabase } from "@/lib/goals/supabaseGoals";
 import { downloadReportPdf } from "@/lib/exportReportPdf";
 import type { Goal } from "@/types/goal";
 
@@ -136,21 +136,57 @@ export default function ReportPage() {
   const goalId = params.id as string;
 
   const [goal, setGoal] = useState<Goal | null>(null);
+  const [isLoadingGoal, setIsLoadingGoal] = useState(true);
+  const [reportError, setReportError] = useState("");
   const [aiReport, setAiReport] = useState<AiReport | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [reportSource, setReportSource] = useState<"gemini" | "fallback">(
     "fallback"
   );
 
-  useEffect(() => {
-  const foundGoal = getGoalById(goalId);
+ useEffect(() => {
+  let isMounted = true;
 
-  if (foundGoal) {
-    setGoal(foundGoal);
+  async function loadGoal() {
+    setIsLoadingGoal(true);
+    setReportError("");
 
-    const localReportData = getReportDataFromGoal(foundGoal);
-    setAiReport(getFallbackAiReport(foundGoal, localReportData));
+    try {
+      const foundGoal = await getGoalByIdFromSupabase(goalId);
+
+      if (!isMounted) return;
+
+      if (!foundGoal) {
+        setGoal(null);
+        setReportError("Goal not found.");
+        return;
+      }
+
+      setGoal(foundGoal);
+
+      const localReportData = getReportDataFromGoal(foundGoal);
+      setAiReport(getFallbackAiReport(foundGoal, localReportData));
+    } catch (error) {
+      if (!isMounted) return;
+
+      setGoal(null);
+      setReportError(
+        error instanceof Error ? error.message : "Could not load report."
+      );
+    } finally {
+      if (!isMounted) return;
+
+      setIsLoadingGoal(false);
+    }
   }
+
+  if (goalId) {
+    loadGoal();
+  }
+
+  return () => {
+    isMounted = false;
+  };
 }, [goalId]);
   function getReportDataFromGoal(currentGoal: Goal): ReportData {
     if (currentGoal.trackerType === "normal") {
@@ -242,6 +278,31 @@ export default function ReportPage() {
 
     setIsGeneratingReport(false);
   }
+  if (isLoadingGoal) {
+  return (
+    <>
+      <Navbar />
+
+      <main className="min-h-screen bg-black px-6 py-10 text-white">
+        <section className="mx-auto max-w-4xl">
+          <Link href="/dashboard" className="text-sm text-blue-300">
+            ← Back to Dashboard
+          </Link>
+
+          <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+            <h1 className="text-3xl font-black">Loading report...</h1>
+            <p className="mt-3 text-zinc-400">
+              Fetching progress report from your Supabase account.
+            </p>
+          </div>
+        </section>
+      </main>
+
+      <Footer />
+    </>
+  );
+}
 
   if (!goal) {
     return (
@@ -257,7 +318,7 @@ export default function ReportPage() {
             <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
               <h1 className="text-3xl font-black">Goal not found</h1>
               <p className="mt-3 text-zinc-400">
-                This report page needs a saved goal first.
+                {reportError || "This report page needs a saved goal first."}
               </p>
             </div>
           </section>
@@ -283,6 +344,11 @@ export default function ReportPage() {
           <Link href={`/goals/${goal.id}`} className="text-sm text-blue-300">
             ← Back to Goal
           </Link>
+          {reportError && (
+            <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
+              {reportError}
+            </div>
+          )}
 
           <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">

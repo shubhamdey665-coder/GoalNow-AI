@@ -5,7 +5,12 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { deleteGoalById, getGoalById, updateGoal } from "@/lib/goalStorage";
+
+import {
+  deleteGoalFromSupabase,
+  getGoalByIdFromSupabase,
+  updateGoalInSupabase,
+} from "@/lib/goals/supabaseGoals";
 import { downloadComplexPlanPdf } from "@/lib/exportPlanPdf";
 import type { Goal } from "@/types/goal";
 
@@ -148,26 +153,79 @@ export default function GoalDetailPage() {
   const goalId = params.id as string;
 
   const [goal, setGoal] = useState<Goal | null>(null);
+  const [isLoadingGoal, setIsLoadingGoal] = useState(true);
+  const [goalError, setGoalError] = useState("");
   const [normalCalendarDate, setNormalCalendarDate] = useState(new Date());
-
   useEffect(() => {
-  const foundGoal = getGoalById(goalId);
+  let isMounted = true;
 
-  if (foundGoal) {
-    const normalizedGoal = normalizeComplexGoalDates(foundGoal);
+  async function loadGoal() {
+    setIsLoadingGoal(true);
+    setGoalError("");
 
-    if (JSON.stringify(normalizedGoal) !== JSON.stringify(foundGoal)) {
-      updateGoal(normalizedGoal);
+    try {
+      const foundGoal = await getGoalByIdFromSupabase(goalId);
+
+      if (!isMounted) return;
+
+      if (!foundGoal) {
+        setGoal(null);
+        return;
+      }
+
+      const normalizedGoal = normalizeComplexGoalDates(foundGoal);
+
+      if (JSON.stringify(normalizedGoal) !== JSON.stringify(foundGoal)) {
+        const savedGoal = await updateGoalInSupabase(normalizedGoal);
+
+        if (!isMounted) return;
+
+        setGoal(savedGoal);
+      } else {
+        setGoal(normalizedGoal);
+      }
+    } catch (error) {
+      if (!isMounted) return;
+
+      setGoal(null);
+      setGoalError(
+        error instanceof Error ? error.message : "Could not load this goal."
+      );
+    } finally {
+      if (!isMounted) return;
+
+      setIsLoadingGoal(false);
     }
-
-    setGoal(normalizedGoal);
   }
+
+  if (goalId) {
+    loadGoal();
+  }
+
+  return () => {
+    isMounted = false;
+  };
 }, [goalId]);
 
-  function saveUpdatedGoal(updatedGoal: Goal) {
-    updateGoal(updatedGoal);
-    setGoal(updatedGoal);
+ async function saveUpdatedGoal(updatedGoal: Goal) {
+  const previousGoal = goal;
+
+  setGoal(updatedGoal);
+  setGoalError("");
+
+  try {
+    const savedGoal = await updateGoalInSupabase(updatedGoal);
+    setGoal(savedGoal);
+  } catch (error) {
+    if (previousGoal) {
+      setGoal(previousGoal);
+    }
+
+    setGoalError(
+      error instanceof Error ? error.message : "Could not update this goal."
+    );
   }
+}
 
   function toggleNormalDate(date: string) {
     if (!goal) return;
@@ -328,18 +386,25 @@ function recoverMissedDate(dayNumber: number, missedDate: string) {
 }
         
 
-  function deleteGoal() {
-    if (!goal) return;
+  async function deleteGoal() {
+  if (!goal) return;
 
-    const confirmDelete = window.confirm(
-      `Are you sure you want to delete "${goal.name}"?`
-    );
+  const confirmDelete = window.confirm(
+    `Are you sure you want to delete "${goal.name}"?`
+  );
 
-    if (!confirmDelete) return;
+  if (!confirmDelete) return;
 
-    deleteGoalById(goal.id);
+  try {
+    await deleteGoalFromSupabase(goal.id);
     router.push("/dashboard");
+    router.refresh();
+  } catch (error) {
+    setGoalError(
+      error instanceof Error ? error.message : "Could not delete this goal."
+    );
   }
+}
 
   function exportGoalSummary() {
     if (!goal) return;
@@ -422,7 +487,31 @@ Last Updated: ${
 
     return streak;
   }
+  if (isLoadingGoal) {
+  return (
+    <>
+      <Navbar />
 
+      <main className="min-h-screen bg-black px-6 py-10 text-white">
+        <section className="mx-auto max-w-4xl">
+          <Link href="/dashboard" className="text-sm text-blue-300">
+            ← Back to Dashboard
+          </Link>
+
+          <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+            <h1 className="text-3xl font-black">Loading goal...</h1>
+            <p className="mt-3 text-zinc-400">
+              Fetching your account-based goal from Supabase.
+            </p>
+          </div>
+        </section>
+      </main>
+
+      <Footer />
+    </>
+  );
+}
   if (!goal) {
     return (
       <>
@@ -433,6 +522,7 @@ Last Updated: ${
             <Link href="/dashboard" className="text-sm text-blue-300">
               ← Back to Dashboard
             </Link>
+            
 
             <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
               <h1 className="text-3xl font-black">Goal not found</h1>
@@ -502,6 +592,11 @@ const hasStreakBreak =
           <Link href="/dashboard" className="text-sm text-blue-300">
             ← Back to Dashboard
           </Link>
+          {goalError && (
+            <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
+              {goalError}
+            </div>
+          )}
 
           <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
             <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">

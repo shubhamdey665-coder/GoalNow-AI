@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { addGoal , getGoals } from "@/lib/goalStorage";
+import {
+  createGoalInSupabase,
+  getGoalsFromSupabase,
+} from "@/lib/goals/supabaseGoals";
 import {
   convertAiPlanToComplexPlanDays,
   generateComplexStarterPlan,
@@ -201,20 +204,34 @@ export default function NewGoalPage() {
     return;
   }
 
-  const goals = getGoals();
+  let goals: Goal[] = [];
 
-  const duplicateGoal = goals.find(
-    (goal) =>
-      goal.name.toLowerCase().trim() === goalName.toLowerCase().trim()
-  );
+    try {
+      goals = await getGoalsFromSupabase();
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not check your existing goals."
+      );
+      setPlan([]);
+      setCompletedTasks([]);
+      setGoalSaved(false);
+      return;
+    }
 
-  if (duplicateGoal) {
-    setMessage("A goal with this name already exists. Please use a different name.");
-    setPlan([]);
-    setCompletedTasks([]);
-    setGoalSaved(false);
-    return;
-  }
+    const duplicateGoal = goals.find(
+      (goal) =>
+        goal.name.toLowerCase().trim() === goalName.toLowerCase().trim()
+    );
+
+    if (duplicateGoal) {
+      setMessage("A goal with this name already exists. Please use a different name.");
+      setPlan([]);
+      setCompletedTasks([]);
+      setGoalSaved(false);
+      return;
+    }
 
   setIsGenerating(true);
 
@@ -284,20 +301,34 @@ export default function NewGoalPage() {
     status: "active",
   };
 
-  addGoal(newGoal);
+  let savedGoal: Goal;
 
-  if (trackerType === "complex") {
-    const previewPlan =
-      newGoal.complexPlanDays?.map(
-        (day) => `Day ${day.dayNumber}: ${day.title} - ${day.focus}`
-      ) || [];
+    try {
+      savedGoal = await createGoalInSupabase(newGoal);
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not save your goal to Supabase."
+      );
+      setGoalSaved(false);
+      setIsGenerating(false);
+      return;
+    }
+ if (trackerType === "complex") {
+  const previewPlan =
+    savedGoal.complexPlanDays?.map(
+      (day) => `Day ${day.dayNumber}: ${day.title} - ${day.focus}`
+    ) || [];
 
-    setPlan(previewPlan);
-    setMessage(`Your complex AI tracker for ${goalName} is saved successfully with a real Gemini-generated plan.`);
-  } else {
-    setPlan([]);
-    setMessage(`Your normal tracker for ${goalName} is saved successfully.`);
-  }
+  setPlan(previewPlan);
+  setMessage(
+    `Your complex AI tracker for ${savedGoal.name} is saved successfully with a real Gemini-generated plan.`
+  );
+} else {
+  setPlan([]);
+  setMessage(`Your normal tracker for ${savedGoal.name} is saved successfully.`);
+}
 
   setCompletedTasks([]);
   setGoalSaved(true);

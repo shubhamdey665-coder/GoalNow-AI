@@ -24,17 +24,24 @@ export default function Home() {
 
         <div className="mt-8 flex flex-col gap-4 sm:flex-row">
           <Link
-            href="/dashboard"
+            href="/signup"
             className="rounded-xl bg-white px-6 py-3 font-semibold text-black transition hover:bg-zinc-200"
           >
-            Open Dashboard
+            Start Free
           </Link>
 
           <Link
-            href="/goals/new"
+            href="/login"
             className="rounded-xl border border-white/20 px-6 py-3 font-semibold text-white transition hover:bg-white/10"
           >
-            Create Goal
+            Login
+          </Link>
+
+          <Link
+            href="/dashboard"
+            className="rounded-xl border border-cyan-400/40 px-6 py-3 font-semibold text-cyan-300 transition hover:bg-cyan-400/10"
+          >
+            Open Dashboard
           </Link>
         </div>
       </section>
