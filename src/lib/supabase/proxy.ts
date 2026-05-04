@@ -31,11 +31,10 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const {
-    data: { claims },
-  } = await supabase.auth.getClaims();
+ const { data: claimsData, error: claimsError } =
+  await supabase.auth.getClaims();
 
-  const isLoggedIn = Boolean(claims);
+const isLoggedIn = !claimsError && Boolean(claimsData?.claims);
   const path = request.nextUrl.pathname;
 
   const isProtectedRoute =
