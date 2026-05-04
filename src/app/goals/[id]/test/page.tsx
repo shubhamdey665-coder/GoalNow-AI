@@ -5,7 +5,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { getGoalById, updateGoal } from "@/lib/goalStorage";
+import {
+  getGoalByIdFromSupabase,
+  updateGoalInSupabase,
+} from "@/lib/goals/supabaseGoals";
 import type { Goal } from "@/types/goal";
 
 type TestQuestion = {
@@ -194,6 +197,9 @@ export default function TestPage() {
   const goalId = params.id as string;
 
   const [goal, setGoal] = useState<Goal | null>(null);
+  const [isLoadingGoal, setIsLoadingGoal] = useState(true);
+  const [testError, setTestError] = useState("");
+  const [isSavingResult, setIsSavingResult] = useState(false);
   const [questions, setQuestions] = useState<TestQuestion[]>([]);
   const [answers, setAnswers] = useState<AnswerMap>({});
   const [result, setResult] = useState("");
@@ -202,10 +208,23 @@ export default function TestPage() {
     "fallback"
   );
 
-  useEffect(() => {
-    const foundGoal = getGoalById(goalId);
+ useEffect(() => {
+  let isMounted = true;
 
-    if (foundGoal) {
+  async function loadGoal() {
+    setIsLoadingGoal(true);
+    setTestError("");
+
+    try {
+      const foundGoal = await getGoalByIdFromSupabase(goalId);
+
+      if (!isMounted) return;
+
+      if (!foundGoal) {
+        setGoal(null);
+        return;
+      }
+
       setGoal(foundGoal);
 
       if (foundGoal.trackerType === "complex") {
@@ -213,8 +232,28 @@ export default function TestPage() {
         setQuestions(fallbackQuestions);
         generateGeminiTest(foundGoal);
       }
+    } catch (error) {
+      if (!isMounted) return;
+
+      setGoal(null);
+      setTestError(
+        error instanceof Error ? error.message : "Could not load weekly test."
+      );
+    } finally {
+      if (!isMounted) return;
+
+      setIsLoadingGoal(false);
     }
-  }, [goalId]);
+  }
+
+  if (goalId) {
+    loadGoal();
+  }
+
+  return () => {
+    isMounted = false;
+  };
+}, [goalId]);
 
   function getComplexProgress(currentGoal: Goal) {
     if (!currentGoal.complexPlanDays) {
@@ -295,7 +334,7 @@ export default function TestPage() {
     });
   }
 
-  function submitTest() {
+  async function submitTest() {
     if (!goal) return;
 
     if (questions.length === 0) {
@@ -335,11 +374,46 @@ export default function TestPage() {
       updatedAt: new Date().toISOString(),
     };
 
-    updateGoal(updatedGoal);
-    setGoal(updatedGoal);
-    setResult(testResult);
-  }
+    setIsSavingResult(true);
+    setTestError("");
 
+    try {
+      const savedGoal = await updateGoalInSupabase(updatedGoal);
+      setGoal(savedGoal);
+      setResult(testResult);
+    } catch (error) {
+      setTestError(
+        error instanceof Error ? error.message : "Could not save weekly test result."
+      );
+    } finally {
+      setIsSavingResult(false);
+    }
+  }
+if (isLoadingGoal) {
+  return (
+    <>
+      <Navbar />
+
+      <main className="min-h-screen bg-black px-6 py-10 text-white">
+        <section className="mx-auto max-w-4xl">
+          <Link href="/dashboard" className="text-sm text-blue-300">
+            ← Back to Dashboard
+          </Link>
+
+          <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+            <h1 className="text-3xl font-black">Loading weekly test...</h1>
+            <p className="mt-3 text-zinc-400">
+              Fetching your goal test data from Supabase.
+            </p>
+          </div>
+        </section>
+      </main>
+
+      <Footer />
+    </>
+  );
+}
   if (!goal) {
     return (
       <>
@@ -401,6 +475,11 @@ export default function TestPage() {
           <Link href={`/goals/${goal.id}`} className="text-sm text-blue-300">
             ← Back to Goal
           </Link>
+          {testError && (
+            <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
+              {testError}
+            </div>
+          )}
 
           <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -535,9 +614,10 @@ export default function TestPage() {
             <button
               type="button"
               onClick={submitTest}
-              className="mt-8 w-full rounded-xl bg-white px-5 py-3 font-semibold text-black transition hover:bg-zinc-200"
+              disabled={isSavingResult}
+              className="mt-8 w-full rounded-xl bg-white px-5 py-3 font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Submit Weekly Test
+              {isSavingResult ? "Saving Result..." : "Submit Weekly Test"}
             </button>
 
             {result && (

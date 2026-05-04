@@ -5,7 +5,11 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { getGoalById, getGoals, updateGoal } from "@/lib/goalStorage";
+import {
+  getGoalByIdFromSupabase,
+  getGoalsFromSupabase,
+  updateGoalInSupabase,
+} from "@/lib/goals/supabaseGoals";
 import type { Goal } from "@/types/goal";
 
 export default function EditGoalPage() {
@@ -14,7 +18,8 @@ export default function EditGoalPage() {
   const goalId = params.id as string;
 
   const [goal, setGoal] = useState<Goal | null>(null);
-
+  const [isLoadingGoal, setIsLoadingGoal] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [name, setName] = useState("");
   const [category, setCategory] = useState("Career / Job");
   const [duration, setDuration] = useState("7 Days");
@@ -34,9 +39,23 @@ export default function EditGoalPage() {
   const [hasTriedToSave, setHasTriedToSave] = useState(false);
 
   useEffect(() => {
-    const foundGoal = getGoalById(goalId);
+  let isMounted = true;
 
-    if (foundGoal) {
+  async function loadGoal() {
+    setIsLoadingGoal(true);
+    setMessage("");
+
+    try {
+      const foundGoal = await getGoalByIdFromSupabase(goalId);
+
+      if (!isMounted) return;
+
+      if (!foundGoal) {
+        setGoal(null);
+        setMessage("Goal not found.");
+        return;
+      }
+
       setGoal(foundGoal);
 
       setName(foundGoal.name);
@@ -51,9 +70,28 @@ export default function EditGoalPage() {
 
       setNormalTarget(foundGoal.normalTarget || foundGoal.name);
       setNormalFrequency(foundGoal.normalFrequency || "daily");
-    }
-  }, [goalId]);
+    } catch (error) {
+      if (!isMounted) return;
 
+      setGoal(null);
+      setMessage(
+        error instanceof Error ? error.message : "Could not load this goal."
+      );
+    } finally {
+      if (!isMounted) return;
+
+      setIsLoadingGoal(false);
+    }
+  }
+
+  if (goalId) {
+    loadGoal();
+  }
+
+  return () => {
+    isMounted = false;
+  };
+}, [goalId]);
   function isTargetDateInvalid() {
     if (!targetDate) return false;
 
@@ -66,7 +104,7 @@ export default function EditGoalPage() {
     return selectedDate <= today;
   }
 
-  function saveChanges() {
+  async function saveChanges() {
     setHasTriedToSave(true);
     if (!goal) return;
 
@@ -99,18 +137,29 @@ export default function EditGoalPage() {
       }
     }
 
-    const goals = getGoals();
+   let goals: Goal[] = [];
 
-    const duplicateGoal = goals.find(
-      (item) =>
-        item.id !== goal.id &&
-        item.name.toLowerCase().trim() === name.toLowerCase().trim()
-    );
+try {
+  goals = await getGoalsFromSupabase();
+} catch (error) {
+  setMessage(
+    error instanceof Error
+      ? error.message
+      : "Could not check your existing goals."
+  );
+  return;
+}
 
-    if (duplicateGoal) {
-      setMessage("Another goal with this name already exists.");
-      return;
-    }
+const duplicateGoal = goals.find(
+  (item) =>
+    item.id !== goal.id &&
+    item.name.toLowerCase().trim() === name.toLowerCase().trim()
+);
+
+if (duplicateGoal) {
+  setMessage("Another goal with this name already exists.");
+  return;
+}
 
     const updatedGoal: Goal = {
       ...goal,
@@ -135,11 +184,46 @@ export default function EditGoalPage() {
       updatedAt: new Date().toISOString(),
     };
 
-    updateGoal(updatedGoal);
+    setIsSaving(true);
+      setMessage("");
 
-    router.push(`/goals/${goal.id}`);
+      try {
+        const savedGoal = await updateGoalInSupabase(updatedGoal);
+        router.push(`/goals/${savedGoal.id}`);
+        router.refresh();
+      } catch (error) {
+        setMessage(
+          error instanceof Error ? error.message : "Could not save your changes."
+        );
+      } finally {
+        setIsSaving(false);
+      }
   }
+  if (isLoadingGoal) {
+  return (
+    <>
+      <Navbar />
 
+      <main className="min-h-screen bg-black px-6 py-10 text-white">
+        <section className="mx-auto max-w-4xl">
+          <Link href="/dashboard" className="text-sm text-blue-300">
+            ← Back to Dashboard
+          </Link>
+
+          <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+            <h1 className="text-3xl font-black">Loading edit page...</h1>
+            <p className="mt-3 text-zinc-400">
+              Fetching your account-based goal from Supabase.
+            </p>
+          </div>
+        </section>
+      </main>
+
+      <Footer />
+    </>
+  );
+}
   if (!goal) {
     return (
       <>
@@ -422,12 +506,13 @@ const targetResultError =
                 </>
               )}
 
-              <button
+             <button
                 type="button"
                 onClick={saveChanges}
-                className="w-full rounded-xl bg-white px-5 py-3 font-semibold text-black transition hover:bg-zinc-200"
+                disabled={isSaving}
+                className="w-full rounded-xl bg-white px-5 py-3 font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Save Changes
+                {isSaving ? "Saving..." : "Save Changes"}
               </button>
 
               {message && (

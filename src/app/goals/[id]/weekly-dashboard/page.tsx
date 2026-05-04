@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { getGoalById } from "@/lib/goalStorage";
+import { getGoalByIdFromSupabase } from "@/lib/goals/supabaseGoals";
 import type { Goal } from "@/types/goal";
 
 function getDateOnly(dateString: string) {
@@ -28,16 +28,80 @@ export default function WeeklyDashboardPage() {
   const params = useParams();
   const goalId = params.id as string;
 
+  
   const [goal, setGoal] = useState<Goal | null>(null);
+  const [isLoadingGoal, setIsLoadingGoal] = useState(true);
+  const [weeklyError, setWeeklyError] = useState("");
 
   useEffect(() => {
-    const foundGoal = getGoalById(goalId);
+  let isMounted = true;
 
-    if (foundGoal) {
+  async function loadGoal() {
+    setIsLoadingGoal(true);
+    setWeeklyError("");
+
+    try {
+      const foundGoal = await getGoalByIdFromSupabase(goalId);
+
+      if (!isMounted) return;
+
+      if (!foundGoal) {
+        setGoal(null);
+        setWeeklyError("Goal not found.");
+        return;
+      }
+
       setGoal(foundGoal);
-    }
-  }, [goalId]);
+    } catch (error) {
+      if (!isMounted) return;
 
+      setGoal(null);
+      setWeeklyError(
+        error instanceof Error
+          ? error.message
+          : "Could not load weekly dashboard."
+      );
+    } finally {
+      if (!isMounted) return;
+
+      setIsLoadingGoal(false);
+    }
+  }
+
+  if (goalId) {
+    loadGoal();
+  }
+
+  return () => {
+    isMounted = false;
+  };
+}, [goalId]);
+
+if (isLoadingGoal) {
+  return (
+    <>
+      <Navbar />
+
+      <main className="min-h-screen bg-black px-6 py-10 text-white">
+        <section className="mx-auto max-w-4xl">
+          <Link href="/dashboard" className="text-sm text-blue-300">
+            ← Back to Dashboard
+          </Link>
+
+          <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+            <h1 className="text-3xl font-black">Loading weekly dashboard...</h1>
+            <p className="mt-3 text-zinc-400">
+              Fetching weekly progress from your Supabase account.
+            </p>
+          </div>
+        </section>
+      </main>
+
+      <Footer />
+    </>
+  );
+}
   if (!goal) {
     return (
       <>
@@ -52,7 +116,7 @@ export default function WeeklyDashboardPage() {
             <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
               <h1 className="text-3xl font-black">Goal not found</h1>
               <p className="mt-3 text-zinc-400">
-                This weekly dashboard needs a saved goal first.
+                {weeklyError || "This weekly dashboard needs a saved goal first."}
               </p>
             </div>
           </section>
@@ -148,6 +212,11 @@ export default function WeeklyDashboardPage() {
           <Link href={`/goals/${goal.id}`} className="text-sm text-blue-300">
             ← Back to Goal
           </Link>
+          {weeklyError && (
+            <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
+              {weeklyError}
+            </div>
+          )}
 
           <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
             <p className="text-sm font-semibold text-blue-300">
