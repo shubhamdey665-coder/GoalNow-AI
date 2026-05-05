@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 
 import {
   deleteGoalFromSupabase,
@@ -92,6 +91,15 @@ function getMonthTitle(calendarDate: Date) {
     year: "numeric",
   });
 }
+
+function GoalPageFooter() {
+  return (
+    <footer className="border-t border-white/10 bg-black px-6 py-5 text-center text-xs text-zinc-500">
+      © 2026 Powered by <span className="font-semibold text-zinc-300">GoalNow-AI</span>
+    </footer>
+  );
+}
+
 function normalizeComplexGoalDates(goal: Goal) {
   if (goal.trackerType !== "complex" || !goal.complexPlanDays) {
     return goal;
@@ -156,6 +164,8 @@ export default function GoalDetailPage() {
   const [isLoadingGoal, setIsLoadingGoal] = useState(true);
   const [goalError, setGoalError] = useState("");
   const [normalCalendarDate, setNormalCalendarDate] = useState(new Date());
+  const [showFullPlan, setShowFullPlan] = useState(false);
+  const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   useEffect(() => {
   let isMounted = true;
 
@@ -508,7 +518,7 @@ Last Updated: ${
         </section>
       </main>
 
-      <Footer />
+      <GoalPageFooter />
     </>
   );
 }
@@ -533,7 +543,7 @@ Last Updated: ${
           </section>
         </main>
 
-        <Footer />
+        <GoalPageFooter />
       </>
     );
   }
@@ -628,64 +638,87 @@ const hasStreakBreak =
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-3">
-                {goal.trackerType === "complex" && (
-                  <>
-                    <Link
-                      href={`/goals/${goal.id}/mentor`}
-                      className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
-                    >
-                      AI Mentor
-                    </Link>
+              <div className="relative flex items-center justify-end">
+                <button
+                  onClick={() => setIsActionMenuOpen((current) => !current)}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-black/20 transition hover:bg-white/20"
+                  aria-label="Open goal actions"
+                >
+                  <span>Actions</span>
+                  <span className="text-lg leading-none">⋮</span>
+                </button>
+
+                {isActionMenuOpen && (
+                  <div className="absolute right-0 top-14 z-20 w-72 overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 p-2 shadow-2xl shadow-black/60">
+                    <div className="border-b border-white/10 px-3 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                        Goal Actions
+                      </p>
+                    </div>
+
+                    {goal.trackerType === "complex" && (
+                      <>
+                        <Link
+                          href={`/goals/${goal.id}/mentor`}
+                          className="block rounded-2xl px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
+                        >
+                          Ask AI Mentor
+                        </Link>
+
+                        <Link
+                          href={`/goals/${goal.id}/test`}
+                          className="block rounded-2xl px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
+                        >
+                          Weekly Test
+                        </Link>
+
+                        <Link
+                          href={`/goals/${goal.id}/weekly-dashboard`}
+                          className="block rounded-2xl px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
+                        >
+                          Weekly Dashboard
+                        </Link>
+
+                        <Link
+                          href={`/goals/${goal.id}/report`}
+                          className="block rounded-2xl px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
+                        >
+                          Progress Report
+                        </Link>
+
+                        <button
+                          onClick={downloadPlanPdf}
+                          className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
+                        >
+                          Download Plan PDF
+                        </button>
+                      </>
+                    )}
 
                     <Link
-                      href={`/goals/${goal.id}/test`}
-                      className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
+                      href={`/goals/${goal.id}/edit`}
+                      className="block rounded-2xl px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
                     >
-                      Weekly Test
-                    </Link>
-                    <Link
-                      href={`/goals/${goal.id}/weekly-dashboard`}
-                      className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
-                    >
-                      Weekly Dashboard
+                      Edit Goal
                     </Link>
 
-                    <Link
-                      href={`/goals/${goal.id}/report`}
-                      className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
-                    >
-                      Report
-                    </Link>
                     <button
-                      onClick={downloadPlanPdf}
-                      className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
+                      onClick={exportGoalSummary}
+                      className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
                     >
-                      Download Plan PDF
+                      Export Summary
                     </button>
-                  </>
+
+                    <div className="mt-2 border-t border-white/10 pt-2">
+                      <button
+                        onClick={deleteGoal}
+                        className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold text-red-300 transition hover:bg-red-400/10"
+                      >
+                        Delete Goal
+                      </button>
+                    </div>
+                  </div>
                 )}
-
-                <Link
-                  href={`/goals/${goal.id}/edit`}
-                  className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
-                >
-                  Edit Goal
-                </Link>
-
-                <button
-                  onClick={exportGoalSummary}
-                  className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20"
-                >
-                  Export Summary
-                </button>
-
-                <button
-                  onClick={deleteGoal}
-                  className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 font-semibold text-red-300 transition hover:bg-red-400/20"
-                >
-                  Delete
-                </button>
               </div>
             </div>
 
@@ -1005,73 +1038,118 @@ const hasStreakBreak =
                   </div>
                 )}
 
-                <div className="mt-8">
-                  <h3 className="text-xl font-bold">Full Plan Days</h3>
+                <div className="mt-8 rounded-3xl border border-white/10 bg-black/30 p-5">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h3 className="text-xl font-bold">Full Plan</h3>
+                      <p className="mt-1 text-sm text-zinc-400">
+                        Hidden by default to keep this goal page clean. Open it only when you need to review all days.
+                      </p>
+                    </div>
 
-                  <div className="mt-4 space-y-4">
-                    {goal.complexPlanDays?.map((day) => (
-                      <div
-                        key={day.dayNumber}
-                        className={
-                          day.dayNumber === goal.activeDayNumber
-                            ? "rounded-2xl border border-blue-400/40 bg-blue-400/10 p-5"
-                            : day.completed
-                            ? "rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-5"
-                            : "rounded-2xl border border-white/10 bg-black/40 p-5"
-                        }
-                      >
-                        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                          <div>
-                            <p className="text-sm text-zinc-400">
-                              Day {day.dayNumber}
-                            </p>
-
-                            <h4 className="mt-1 text-xl font-bold">
-                              {day.title}
-                            </h4>
-
-                            <p className="mt-2 text-zinc-400">{day.focus}</p>
-                          </div>
-
-                          <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-sm">
-                            {day.completed
-                              ? "Completed"
-                              : day.dayNumber === goal.activeDayNumber
-                              ? "Active"
-                              : "Locked / Upcoming"}
-                          </span>
-                        </div>
-
-                        <div className="mt-4 space-y-2">
-                          {day.tasks.map((task) => (
-                            <label
-                              key={task.id}
-                              className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-black/30 p-3"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={task.completed}
-                                onChange={() =>
-                                  toggleComplexTask(day.dayNumber, task.id)
-                                }
-                                className="mt-1 h-4 w-4"
-                              />
-
-                              <span
-                                className={
-                                  task.completed
-                                    ? "text-zinc-500 line-through"
-                                    : "text-zinc-200"
-                                }
-                              >
-                                {task.title}
-                              </span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                    <button
+                      onClick={() => setShowFullPlan((current) => !current)}
+                      className="rounded-2xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/20"
+                    >
+                      {showFullPlan ? "Hide Full Plan" : "View Full Plan"}
+                    </button>
                   </div>
+
+                  {!showFullPlan && (
+                    <div className="mt-5 grid gap-3 md:grid-cols-3">
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-sm text-zinc-400">Completed</p>
+                        <h4 className="mt-1 text-2xl font-black">
+                          {completedComplexDays}/{totalComplexDays}
+                        </h4>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-sm text-zinc-400">Active</p>
+                        <h4 className="mt-1 text-2xl font-black">
+                          Day {goal.activeDayNumber || 1}
+                        </h4>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-sm text-zinc-400">Remaining</p>
+                        <h4 className="mt-1 text-2xl font-black">
+                          {Math.max(totalComplexDays - completedComplexDays, 0)} days
+                        </h4>
+                      </div>
+                    </div>
+                  )}
+
+                  {showFullPlan && (
+                    <div className="mt-5 max-h-[520px] space-y-3 overflow-y-auto pr-2">
+                      {goal.complexPlanDays?.map((day) => {
+                        const completedTasks = day.tasks.filter((task) => task.completed).length;
+                        const totalTasks = day.tasks.length;
+
+                        return (
+                          <details
+                            key={day.dayNumber}
+                            open={day.dayNumber === goal.activeDayNumber}
+                            className={
+                              day.dayNumber === goal.activeDayNumber
+                                ? "rounded-2xl border border-blue-400/40 bg-blue-400/10 p-4"
+                                : day.completed
+                                ? "rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4"
+                                : "rounded-2xl border border-white/10 bg-black/40 p-4"
+                            }
+                          >
+                            <summary className="cursor-pointer list-none">
+                              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                  <p className="text-sm text-zinc-400">Day {day.dayNumber}</p>
+                                  <h4 className="mt-1 font-bold text-white">{day.title}</h4>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs text-zinc-300">
+                                    {completedTasks}/{totalTasks} tasks
+                                  </span>
+                                  <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs text-zinc-300">
+                                    {day.completed
+                                      ? "Completed"
+                                      : day.dayNumber === goal.activeDayNumber
+                                      ? "Active"
+                                      : "Upcoming"}
+                                  </span>
+                                </div>
+                              </div>
+                            </summary>
+
+                            <p className="mt-3 text-sm text-zinc-400">{day.focus}</p>
+
+                            <div className="mt-4 space-y-2">
+                              {day.tasks.map((task) => (
+                                <label
+                                  key={task.id}
+                                  className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-black/30 p-3"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={task.completed}
+                                    onChange={() => toggleComplexTask(day.dayNumber, task.id)}
+                                    className="mt-1 h-4 w-4"
+                                  />
+
+                                  <span
+                                    className={
+                                      task.completed
+                                        ? "text-zinc-500 line-through"
+                                        : "text-zinc-200"
+                                    }
+                                  >
+                                    {task.title}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          </details>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1144,7 +1222,7 @@ const hasStreakBreak =
         </section>
       </main>
 
-      <Footer />
+      <GoalPageFooter />
     </>
   );
 }
