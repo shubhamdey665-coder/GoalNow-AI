@@ -83,6 +83,12 @@ export default function Navbar() {
               >
                 Create Goal
               </Link>
+              <Link
+                href="/profile"
+                className="hidden rounded-xl px-3 py-2 font-medium text-zinc-300 transition hover:bg-white/10 hover:text-white sm:inline"
+              >
+                Profile
+              </Link>
 
               <span className="hidden max-w-[180px] truncate rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-cyan-200 md:inline">
                 {userEmail}
