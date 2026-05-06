@@ -211,12 +211,7 @@ export default function Navbar() {
                 Login
               </Link>
 
-              <Link
-                href="/signup"
-                className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
-              >
-                Start Free
-              </Link>
+              
             </>
           )}
         </div>
@@ -307,13 +302,7 @@ export default function Navbar() {
                 Login
               </Link>
 
-              <Link
-                href="/signup"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="block rounded-2xl bg-white px-4 py-3 text-center text-sm font-black text-slate-950 transition hover:bg-cyan-200"
-              >
-                Start Free
-              </Link>
+              
             </div>
           )}
         </div>
