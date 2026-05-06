@@ -2,8 +2,9 @@ import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
 
 type GeneratedTestQuestion = {
+  type: "mcq" | "saq";
   question: string;
-  options: string[];
+  options?: string[];
   correctAnswer: string;
   explanation: string;
 };
@@ -13,6 +14,14 @@ function cleanJsonText(text: string) {
     .replace(/```json/g, "")
     .replace(/```/g, "")
     .trim();
+}
+
+function isValidQuestionCount(value: unknown): value is 5 | 10 | 20 {
+  return value === 5 || value === 10 || value === 20;
+}
+
+function isValidQuestionType(value: unknown): value is "mcq" | "saq" {
+  return value === "mcq" || value === "saq";
 }
 
 export async function POST(request: Request) {
@@ -27,12 +36,17 @@ export async function POST(request: Request) {
     const body = await request.json();
 
     const {
+      questionType,
+      questionCount,
       goalName,
       category,
       currentLevel,
       targetResult,
+      dailyTime,
+      activeDayNumber,
       activeDayTitle,
       activeDayFocus,
+      activeDayTasks,
       completedDays,
       totalDays,
     } = body;
@@ -44,53 +58,93 @@ export async function POST(request: Request) {
       );
     }
 
+    const safeQuestionType: "mcq" | "saq" = isValidQuestionType(questionType)
+      ? questionType
+      : "mcq";
+
+    const safeQuestionCount: 5 | 10 | 20 = isValidQuestionCount(questionCount)
+      ? questionCount
+      : 5;
+
+    const safeActiveDayTasks = Array.isArray(activeDayTasks)
+      ? activeDayTasks
+      : [];
+
     const ai = new GoogleGenAI({
       apiKey: process.env.GEMINI_API_KEY,
     });
 
     const prompt = `
-You are GoalNow AI. Create a realistic weekly test for this user's goal.
+You are GoalNow-AI Weekly Test Generator.
 
-Goal Name: ${goalName}
-Category: ${category}
-Current Level: ${currentLevel || "Not provided"}
-Target Result: ${targetResult || "Not provided"}
-Current Active Day Title: ${activeDayTitle || "Not provided"}
-Current Active Day Focus: ${activeDayFocus || "Not provided"}
-Completed Plan Days: ${completedDays}/${totalDays}
+Create a realistic weekly test for this user's saved goal.
 
-Rules:
+Test settings:
+- Question type: ${safeQuestionType}
+- Number of questions: ${safeQuestionCount}
+
+Goal context:
+- Goal name: ${goalName}
+- Category: ${category}
+- Current level: ${currentLevel || "Not provided"}
+- Target result: ${targetResult || "Not provided"}
+- Daily time: ${dailyTime || "Not provided"}
+- Active day number: ${activeDayNumber || "Not provided"}
+- Active day title: ${activeDayTitle || "Not provided"}
+- Active day focus: ${activeDayFocus || "Not provided"}
+- Active day tasks: ${safeActiveDayTasks.join(", ") || "Not provided"}
+- Completed plan days: ${completedDays || 0}/${totalDays || 0}
+
+Important rules:
 - Return only valid JSON.
 - No markdown.
 - No explanation outside JSON.
-- Create exactly 5 multiple-choice questions.
-- Each question must have exactly 4 options.
-- The questions must be realistic for the user's current level.
-- If this is Google SWE/coding/DSA/web development, include practical coding, concept, debugging, or workflow questions.
-- If this is English, include grammar, speaking, vocabulary, communication, and sentence correction.
-- If this is fitness, include routine, food, recovery, and consistency.
-- If this is business, include customer handling, service process, money tracking, and practical workflow.
+- Create exactly ${safeQuestionCount} questions.
+- Questions must test the current active day, current focus, recent tasks, and goal context.
+- Avoid generic questions.
+- Questions should match the user's current level.
+- Explanations must be short and beginner-friendly.
+- If the goal is coding / Google SWE / DSA / web development, ask about DSA, debugging, Git/GitHub, web development, code workflow, and project practice.
+- If the goal is English, ask about grammar, speaking, vocabulary, sentence correction, listening, and communication.
+- If the goal is fitness, ask only safe general routine, recovery, consistency, and healthy habit questions.
+- If the goal is business, ask about service process, customer handling, records, pricing, and practice.
+
+Format rules:
+${
+  safeQuestionType === "mcq"
+    ? `
+For MCQ:
+- Every question must have type: "mcq"
+- Every question must have exactly 4 options.
 - correctAnswer must exactly match one of the options.
-- explanation should be short and beginner-friendly.
+`
+    : `
+For SAQ:
+- Every question must have type: "saq"
+- Do not include options.
+- correctAnswer should be a short expected answer.
+`
+}
 
 Return JSON in this exact shape:
 {
   "questions": [
     {
+      "type": "${safeQuestionType}",
       "question": "Question text",
-      "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correctAnswer": "Option A",
+      ${
+        safeQuestionType === "mcq"
+          ? `"options": ["Option A", "Option B", "Option C", "Option D"],`
+          : ""
+      }
+      "correctAnswer": "Correct answer text",
       "explanation": "Short explanation"
     }
   ]
 }
 `;
 
-    const modelsToTry = [
-      
-      "gemini-2.5-flash-lite",
-      "gemini-2.0-flash",
-    ];
+    const modelsToTry = ["gemini-2.5-flash-lite", "gemini-2.0-flash"];
 
     let text = "";
     let usedModel = "";
@@ -149,7 +203,40 @@ Return JSON in this exact shape:
       );
     }
 
-    return NextResponse.json(parsed);
+    const cleanQuestions = parsed.questions
+      .slice(0, safeQuestionCount)
+      .map((question) => {
+        if (safeQuestionType === "mcq") {
+          return {
+            type: "mcq" as const,
+            question: question.question,
+            options:
+              Array.isArray(question.options) && question.options.length >= 4
+                ? question.options.slice(0, 4)
+                : ["Option A", "Option B", "Option C", "Option D"],
+            correctAnswer: question.correctAnswer,
+            explanation: question.explanation,
+          };
+        }
+
+        return {
+          type: "saq" as const,
+          question: question.question,
+          correctAnswer: question.correctAnswer,
+          explanation: question.explanation,
+        };
+      });
+
+    if (cleanQuestions.length !== safeQuestionCount) {
+      return NextResponse.json(
+        { error: "Gemini did not return the requested number of questions." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      questions: cleanQuestions,
+    });
   } catch (error) {
     console.error("Gemini test generation error:", error);
 
