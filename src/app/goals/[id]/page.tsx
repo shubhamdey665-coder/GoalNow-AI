@@ -579,7 +579,7 @@ const normalMonthCompletedCount = normalMonthCheckIns.filter(
 ).length;
 
 const normalMonthTrackableDays = normalMonthDays.filter(
-  (date): date is string => Boolean(date) && date <= todayString
+  (date): date is string => typeof date === "string" && date <= todayString
 );
 
 const normalMonthTotalDays = normalMonthTrackableDays.length;
