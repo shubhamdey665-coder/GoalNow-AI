@@ -29,6 +29,11 @@ function getYesterdayString() {
   yesterday.setDate(yesterday.getDate() - 1);
   return formatDateToYMD(yesterday);
 }
+function addDaysToYMD(dateString: string, amount: number) {
+  const date = new Date(`${dateString}T00:00:00`);
+  date.setDate(date.getDate() + amount);
+  return formatDateToYMD(date);
+}
 
 function getDateRange(startDate: string, endDate: string) {
   const dates: string[] = [];
@@ -239,6 +244,11 @@ export default function GoalDetailPage() {
 
   function toggleNormalDate(date: string) {
     if (!goal) return;
+
+    if (date > getTodayString()) {
+      setGoalError("Future dates cannot be marked. You can only mark today or past dates.");
+      return;
+    }
 
     const checkIns = goal.normalCheckIns || [];
     const existingCheckIn = checkIns.find((item) => item.date === date);
@@ -549,50 +559,84 @@ Last Updated: ${
   }
 
   const progressPercentage = getProgressPercentage();
-  const normalMonthDays = getMonthCalendarDays(normalCalendarDate);
+
+const todayString = getTodayString();
+const yesterdayString = getYesterdayString();
+
+const normalMonthDays = getMonthCalendarDays(normalCalendarDate);
 
 const normalMonthPrefix = `${normalCalendarDate.getFullYear()}-${String(
   normalCalendarDate.getMonth() + 1
 ).padStart(2, "0")}`;
 
 const normalMonthCheckIns =
-  goal.normalCheckIns?.filter((item) => item.date.startsWith(normalMonthPrefix)) ||
-  [];
+  goal.normalCheckIns?.filter((item) =>
+    item.date.startsWith(normalMonthPrefix)
+  ) || [];
 
 const normalMonthCompletedCount = normalMonthCheckIns.filter(
   (item) => item.completed
 ).length;
 
-const normalMonthTotalDays = normalMonthDays.filter(Boolean).length;
+const normalMonthTrackableDays = normalMonthDays.filter(
+  (date): date is string => Boolean(date) && date <= todayString
+);
+
+const normalMonthTotalDays = normalMonthTrackableDays.length;
 
 const normalMonthProgress =
   normalMonthTotalDays === 0
     ? 0
     : Math.round((normalMonthCompletedCount / normalMonthTotalDays) * 100);
-  
 
-  const activeDay = goal.complexPlanDays?.find(
-    (day) => day.dayNumber === goal.activeDayNumber
-  );
-  const activeDayMissedDates = activeDay?.missedDates || [];
+const normalCompletedCount =
+  goal.normalCheckIns?.filter((item) => item.completed).length || 0;
+
+const normalCompletedDates =
+  goal.normalCheckIns
+    ?.filter((item) => item.completed)
+    .map((item) => item.date)
+    .sort() || [];
+
+const lastNormalCompletedDate =
+  normalCompletedDates.length > 0
+    ? normalCompletedDates[normalCompletedDates.length - 1]
+    : "";
+
+const missedNormalDates =
+  lastNormalCompletedDate && lastNormalCompletedDate < yesterdayString
+    ? getDateRange(addDaysToYMD(lastNormalCompletedDate, 1), yesterdayString)
+    : [];
+
+const normalHasStreakBreak =
+  goal.trackerType === "normal" &&
+  missedNormalDates.length > 0 &&
+  lastNormalCompletedDate !== todayString;
+
+const complexPlanDays = goal.complexPlanDays || [];
+
+const activeDay =
+  goal.trackerType === "complex"
+    ? complexPlanDays.find(
+        (day) => day.dayNumber === (goal.activeDayNumber || 1)
+      )
+    : undefined;
+
+const activeDayMissedDates = activeDay?.missedDates || [];
+
 const hasStreakBreak =
   goal.trackerType === "complex" && activeDayMissedDates.length > 0;
 
-  const completedComplexDays =
-    goal.complexPlanDays?.filter((day) => day.completed).length || 0;
+const activeDayNotCompleted =
+  goal.trackerType === "complex" && Boolean(activeDay && !activeDay.completed);
 
-  const totalComplexDays = goal.complexPlanDays?.length || 0;
+const totalComplexDays = complexPlanDays.length;
 
-  const normalCompletedCount =
-    goal.normalCheckIns?.filter((item) => item.completed).length || 0;
+const completedComplexDays = complexPlanDays.filter(
+  (day) => day.completed
+).length;
 
-  const normalTotalCount = goal.normalCheckIns?.length || 0;
-
-  const todayString = getTodayString();
-
-  const activeDayNotCompleted =
-    goal.trackerType === "complex" && activeDay && !activeDay.completed;
-
+ 
   return (
     <>
       <Navbar />
@@ -768,175 +812,333 @@ const hasStreakBreak =
           </div>
 
           {goal.trackerType === "normal" && (
-            <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <h2 className="text-3xl font-black">Normal Calendar Tracker</h2>
-                  <p className="mt-2 text-zinc-400">
-                    Tick dates for simple goals like saving money, drinking water,
-                    walking, reading, or daily habits.
-                  </p>
-                </div>
+  <div className="mt-8 rounded-[2rem] border border-white/10 bg-white/5 p-4 shadow-2xl md:p-8">
+    <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+      <div>
+        <p className="text-sm font-bold text-cyan-300">Normal Habit Tracker</p>
 
-                <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-4">
-                  <p className="text-sm text-emerald-300">Current Streak</p>
-                  <h3 className="mt-1 text-3xl font-black">
-                    {getNormalStreak()} days
-                  </h3>
-                </div>
-              </div>
+        <h2 className="mt-2 text-2xl font-black tracking-tight text-white md:text-3xl">
+          Calendar Progress
+        </h2>
 
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
-                <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
-                  <p className="text-sm text-zinc-400">Target</p>
-                  <h3 className="mt-2 text-xl font-bold">
-                    {goal.normalTarget || goal.name}
-                  </h3>
-                </div>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400 md:text-base">
+          Mark your daily habit only for today or past dates. Future dates are
+          locked so your progress stays honest.
+        </p>
+      </div>
 
-                <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
-                  <p className="text-sm text-zinc-400">Frequency</p>
-                  <h3 className="mt-2 text-xl font-bold">
-                    {goal.normalFrequency || "daily"}
-                  </h3>
-                </div>
-
-                <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
-                  <p className="text-sm text-zinc-400">Completed</p>
-                  <h3 className="mt-2 text-xl font-bold">
-                    {normalCompletedCount} / {normalTotalCount}
-                  </h3>
-                </div>
-              </div>
-
-              <div className="mt-8">
-  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-    <div>
-      <h3 className="text-2xl font-black">Monthly Calendar</h3>
-      <p className="mt-1 text-sm text-zinc-400">
-        Click any date to tick or untick your normal tracker.
-      </p>
-    </div>
-
-    <div className="flex flex-wrap gap-3">
-      <button
-        onClick={goToPreviousMonth}
-        className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
+      <div
+        className={
+          normalHasStreakBreak
+            ? "rounded-3xl border border-red-400/30 bg-red-400/10 px-5 py-4"
+            : "rounded-3xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-4"
+        }
       >
-        Previous
-      </button>
-
-      <button
-        onClick={goToCurrentMonth}
-        className="rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-sm font-semibold text-blue-200 transition hover:bg-blue-400/20"
-      >
-        Today
-      </button>
-
-      <button
-        onClick={goToNextMonth}
-        className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/20"
-      >
-        Next
-      </button>
-    </div>
-  </div>
-
-  <div className="mt-5 grid gap-4 md:grid-cols-3">
-    <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
-      <p className="text-sm text-zinc-400">Month</p>
-      <h3 className="mt-2 text-xl font-bold">
-        {getMonthTitle(normalCalendarDate)}
-      </h3>
-    </div>
-
-    <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
-      <p className="text-sm text-zinc-400">Completed This Month</p>
-      <h3 className="mt-2 text-xl font-bold">
-        {normalMonthCompletedCount}/{normalMonthTotalDays}
-      </h3>
-    </div>
-
-    <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
-      <p className="text-sm text-zinc-400">Monthly Progress</p>
-      <h3 className="mt-2 text-xl font-bold">{normalMonthProgress}%</h3>
-    </div>
-  </div>
-
-  <div className="mt-6 grid grid-cols-7 gap-2 text-center text-sm font-semibold text-zinc-400">
-    <div>Sun</div>
-    <div>Mon</div>
-    <div>Tue</div>
-    <div>Wed</div>
-    <div>Thu</div>
-    <div>Fri</div>
-    <div>Sat</div>
-  </div>
-
-  <div className="mt-3 grid grid-cols-7 gap-2">
-    {normalMonthDays.map((date, index) => {
-      if (!date) {
-        return (
-          <div
-            key={`blank-${index}`}
-            className="min-h-24 rounded-2xl border border-transparent"
-          />
-        );
-      }
-
-      const checkIn = goal.normalCheckIns?.find(
-        (item) => item.date === date
-      );
-
-      const isCompleted = checkIn?.completed || false;
-      const isToday = date === todayString;
-
-      return (
-        <button
-          key={date}
-          onClick={() => toggleNormalDate(date)}
+        <p
           className={
-            isCompleted
-              ? "min-h-24 rounded-2xl border border-emerald-400/40 bg-emerald-400/20 p-3 text-left"
-              : isToday
-              ? "min-h-24 rounded-2xl border border-blue-400/40 bg-blue-400/10 p-3 text-left"
-              : "min-h-24 rounded-2xl border border-white/10 bg-black/40 p-3 text-left hover:bg-white/10"
+            normalHasStreakBreak
+              ? "text-sm font-semibold text-red-200"
+              : "text-sm font-semibold text-emerald-300"
           }
         >
-          <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-semibold text-white">
-              {new Date(date).getDate()}
-            </p>
+          Current Streak
+        </p>
 
-            {isToday && (
-              <span className="rounded-full bg-blue-400/20 px-2 py-0.5 text-[10px] font-semibold text-blue-200">
-                Today
+        <h3 className="mt-1 text-3xl font-black text-white">
+          {getNormalStreak()} days
+        </h3>
+
+        <p className="mt-1 text-xs text-zinc-400">
+          {normalHasStreakBreak ? "Streak needs recovery" : "Keep going"}
+        </p>
+      </div>
+    </div>
+
+    {normalHasStreakBreak && (
+      <div className="mt-6 rounded-3xl border border-red-400/30 bg-red-400/10 p-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h3 className="text-xl font-black text-red-200">
+              Streak Break Detected
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-red-100">
+              Your last completed date was{" "}
+              <span className="font-bold">
+                {new Date(lastNormalCompletedDate).toLocaleDateString()}
               </span>
-            )}
+              . You missed {missedNormalDates.length} day
+              {missedNormalDates.length === 1 ? "" : "s"} after that.
+            </p>
           </div>
 
-          <h4
-            className={
-              isCompleted
-                ? "mt-3 text-sm font-bold text-emerald-200"
-                : "mt-3 text-sm font-bold text-zinc-400"
-            }
+          <button
+            type="button"
+            onClick={goToCurrentMonth}
+            className="w-fit rounded-2xl border border-red-300/30 bg-red-300/10 px-4 py-3 text-sm font-bold text-red-100 transition hover:bg-red-300/20"
           >
-            {isCompleted ? "✓ Done" : "Not Done"}
-          </h4>
+            Go to Today
+          </button>
+        </div>
 
-          {checkIn?.editedAt && (
-            <p className="mt-2 text-[10px] text-zinc-500">
-              Edited {new Date(checkIn.editedAt).toLocaleDateString()}
-            </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {missedNormalDates.slice(0, 10).map((missedDate) => (
+            <span
+              key={missedDate}
+              className="rounded-full border border-red-300/20 bg-black/30 px-3 py-1 text-xs font-semibold text-red-100"
+            >
+              {new Date(missedDate).toLocaleDateString()}
+            </span>
+          ))}
+
+          {missedNormalDates.length > 10 && (
+            <span className="rounded-full border border-red-300/20 bg-black/30 px-3 py-1 text-xs font-semibold text-red-100">
+              +{missedNormalDates.length - 10} more
+            </span>
           )}
-        </button>
-      );
-    })}
+        </div>
+      </div>
+    )}
+
+    <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
+        <p className="text-sm text-zinc-400">Target</p>
+        <h3 className="mt-2 line-clamp-2 text-lg font-black text-white">
+          {goal.normalTarget || goal.name}
+        </h3>
+      </div>
+
+      <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
+        <p className="text-sm text-zinc-400">Frequency</p>
+        <h3 className="mt-2 text-lg font-black capitalize text-white">
+          {goal.normalFrequency || "daily"}
+        </h3>
+      </div>
+
+      <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
+        <p className="text-sm text-zinc-400">Completed</p>
+        <h3 className="mt-2 text-lg font-black text-white">
+          {normalCompletedCount} days
+        </h3>
+      </div>
+
+      <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
+        <p className="text-sm text-zinc-400">This Month</p>
+        <h3 className="mt-2 text-lg font-black text-white">
+          {normalMonthProgress}%
+        </h3>
+      </div>
+    </div>
+
+    <div className="mt-8 rounded-[2rem] border border-white/10 bg-slate-950/60 p-3 md:p-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h3 className="text-xl font-black text-white md:text-2xl">
+            {getMonthTitle(normalCalendarDate)}
+          </h3>
+
+          <p className="mt-1 text-xs text-zinc-500 md:text-sm">
+            Tap a day to mark it. Future days are locked.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 md:flex md:flex-wrap">
+          <button
+            type="button"
+            onClick={goToPreviousMonth}
+            className="rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20 md:px-4 md:py-3 md:text-sm"
+          >
+            Previous
+          </button>
+
+          <button
+            type="button"
+            onClick={goToCurrentMonth}
+            className="rounded-2xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-bold text-cyan-200 transition hover:bg-cyan-400/20 md:px-4 md:py-3 md:text-sm"
+          >
+            Today
+          </button>
+
+          <button
+            type="button"
+            onClick={goToNextMonth}
+            className="rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20 md:px-4 md:py-3 md:text-sm"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-3 gap-3">
+        <div className="rounded-2xl border border-white/10 bg-black/30 p-3 md:p-4">
+          <p className="text-[11px] text-zinc-500 md:text-sm">Done</p>
+          <h4 className="mt-1 text-lg font-black text-emerald-300 md:text-2xl">
+            {normalMonthCompletedCount}
+          </h4>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-black/30 p-3 md:p-4">
+          <p className="text-[11px] text-zinc-500 md:text-sm">Trackable</p>
+          <h4 className="mt-1 text-lg font-black text-white md:text-2xl">
+            {normalMonthTotalDays}
+          </h4>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-black/30 p-3 md:p-4">
+          <p className="text-[11px] text-zinc-500 md:text-sm">Progress</p>
+          <h4 className="mt-1 text-lg font-black text-cyan-300 md:text-2xl">
+            {normalMonthProgress}%
+          </h4>
+        </div>
+      </div>
+
+      <div className="mt-5 h-3 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-cyan-400 transition-all"
+          style={{ width: `${normalMonthProgress}%` }}
+        />
+      </div>
+
+      <div className="mt-6 grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase tracking-wide text-zinc-500 sm:gap-2 sm:text-xs">
+        <div>Sun</div>
+        <div>Mon</div>
+        <div>Tue</div>
+        <div>Wed</div>
+        <div>Thu</div>
+        <div>Fri</div>
+        <div>Sat</div>
+      </div>
+
+      <div className="mt-2 grid grid-cols-7 gap-1 sm:gap-2">
+        {normalMonthDays.map((date, index) => {
+          if (!date) {
+            return (
+              <div
+                key={`blank-${index}`}
+                className="min-h-14 rounded-xl border border-transparent sm:min-h-24"
+              />
+            );
+          }
+
+          const checkIn = goal.normalCheckIns?.find(
+            (item) => item.date === date
+          );
+
+          const isCompleted = checkIn?.completed || false;
+          const isToday = date === todayString;
+          const isFutureDate = date > todayString;
+          const isMissedDate = missedNormalDates.includes(date);
+
+          return (
+            <button
+              key={date}
+              type="button"
+              disabled={isFutureDate}
+              onClick={() => toggleNormalDate(date)}
+              title={
+                isFutureDate
+                  ? "Future date is locked"
+                  : isCompleted
+                  ? "Marked completed"
+                  : isMissedDate
+                  ? "Missed day"
+                  : "Tap to mark completed"
+              }
+              className={
+                isFutureDate
+                  ? "min-h-14 cursor-not-allowed rounded-xl border border-white/5 bg-white/[0.03] p-1.5 text-left opacity-45 sm:min-h-24 sm:rounded-2xl sm:p-3"
+                  : isCompleted
+                  ? "min-h-14 rounded-xl border border-emerald-400/40 bg-emerald-400/20 p-1.5 text-left shadow-lg shadow-emerald-500/10 transition hover:bg-emerald-400/25 sm:min-h-24 sm:rounded-2xl sm:p-3"
+                  : isMissedDate
+                  ? "min-h-14 rounded-xl border border-red-400/40 bg-red-400/10 p-1.5 text-left transition hover:bg-red-400/15 sm:min-h-24 sm:rounded-2xl sm:p-3"
+                  : isToday
+                  ? "min-h-14 rounded-xl border border-cyan-400/50 bg-cyan-400/10 p-1.5 text-left ring-1 ring-cyan-400/20 transition hover:bg-cyan-400/15 sm:min-h-24 sm:rounded-2xl sm:p-3"
+                  : "min-h-14 rounded-xl border border-white/10 bg-black/30 p-1.5 text-left transition hover:bg-white/10 sm:min-h-24 sm:rounded-2xl sm:p-3"
+              }
+            >
+              <div className="flex items-start justify-between gap-1">
+                <p
+                  className={
+                    isFutureDate
+                      ? "text-xs font-black text-zinc-600 sm:text-sm"
+                      : "text-xs font-black text-white sm:text-sm"
+                  }
+                >
+                  {new Date(date).getDate()}
+                </p>
+
+                {isToday && (
+                  <span className="hidden rounded-full bg-cyan-400/20 px-2 py-0.5 text-[10px] font-bold text-cyan-200 sm:inline">
+                    Today
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-2 sm:mt-4">
+                {isCompleted ? (
+                  <p className="text-[10px] font-black text-emerald-200 sm:text-sm">
+                    ✓ Done
+                  </p>
+                ) : isFutureDate ? (
+                  <p className="text-[10px] font-bold text-zinc-600 sm:text-sm">
+                    Locked
+                  </p>
+                ) : isMissedDate ? (
+                  <p className="text-[10px] font-black text-red-200 sm:text-sm">
+                    Missed
+                  </p>
+                ) : isToday ? (
+                  <p className="text-[10px] font-black text-cyan-200 sm:text-sm">
+                    Today
+                  </p>
+                ) : (
+                  <p className="text-[10px] font-bold text-zinc-500 sm:text-sm">
+                    Empty
+                  </p>
+                )}
+              </div>
+
+              {checkIn?.editedAt && (
+                <p className="mt-1 hidden text-[10px] text-zinc-500 sm:block">
+                  Edited {new Date(checkIn.editedAt).toLocaleDateString()}
+                </p>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-6 grid gap-2 text-xs text-zinc-400 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+          <span className="h-3 w-3 rounded-full bg-emerald-400" />
+          Done
+        </div>
+
+        <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+          <span className="h-3 w-3 rounded-full bg-cyan-400" />
+          Today
+        </div>
+
+        <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+          <span className="h-3 w-3 rounded-full bg-red-400" />
+          Streak missed
+        </div>
+
+        <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+          <span className="h-3 w-3 rounded-full bg-zinc-600" />
+          Future locked
+        </div>
+      </div>
+    </div>
   </div>
-</div>
-            </div>
-          )}
+)}
+
+    
+
+  
+       
+
+    
 
           {goal.trackerType === "complex" && (
             <div className="mt-8 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
