@@ -103,39 +103,79 @@ export default function DashboardPage() {
     return matchesSearch && matchesCategory && matchesTrackerType;
   });
 
-  const sortedGoals = [...filteredGoals].sort((a, b) => {
-    const progressA = getGoalProgress(a);
-    const progressB = getGoalProgress(b);
+  const priorityScore: Record<string, number> = {
+  High: 3,
+  Medium: 2,
+  Low: 1,
+};
 
-    if (sortBy === "Newest First") {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    }
+const sortedGoals = [...filteredGoals].sort((a, b) => {
+  if (sortBy === "Newest First") {
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  }
 
-    if (sortBy === "Oldest First") {
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    }
+  if (sortBy === "Oldest First") {
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  }
 
-    if (sortBy === "Highest Progress") {
-      return progressB - progressA;
-    }
+  if (sortBy === "Highest Progress") {
+    return getGoalProgress(b) - getGoalProgress(a);
+  }
 
-    if (sortBy === "Lowest Progress") {
-      return progressA - progressB;
-    }
+  if (sortBy === "Lowest Progress") {
+    return getGoalProgress(a) - getGoalProgress(b);
+  }
 
-    if (sortBy === "A to Z") {
-      return a.name.localeCompare(b.name);
-    }
+  if (sortBy === "Highest Priority") {
+    return (
+      (priorityScore[b.priority || "Medium"] || 2) -
+      (priorityScore[a.priority || "Medium"] || 2)
+    );
+  }
 
-    if (sortBy === "Z to A") {
-      return b.name.localeCompare(a.name);
-    }
+  if (sortBy === "Lowest Priority") {
+    return (
+      (priorityScore[a.priority || "Medium"] || 2) -
+      (priorityScore[b.priority || "Medium"] || 2)
+    );
+  }
 
-    return 0;
-  });
+  if (sortBy === "A to Z") {
+    return a.name.localeCompare(b.name);
+  }
 
+  if (sortBy === "Z to A") {
+    return b.name.localeCompare(a.name);
+  }
+
+  return 0;
+});
+   
   const completedGoals = goals.filter((goal) => getGoalProgress(goal) === 100);
   const inProgressGoals = goals.filter((goal) => getGoalProgress(goal) < 100);
+  const normalGoals = goals.filter((goal) => goal.trackerType === "normal");
+
+const complexGoals = goals.filter((goal) => goal.trackerType === "complex");
+
+const overdueGoals = goals.filter((goal) => {
+  if (!goal.targetDate) return false;
+
+  const today = new Date();
+  const target = new Date(goal.targetDate);
+
+  today.setHours(0, 0, 0, 0);
+  target.setHours(0, 0, 0, 0);
+
+  return target < today && getGoalProgress(goal) < 100;
+});
+
+const averageProgress =
+  goals.length === 0
+    ? 0
+    : Math.round(
+        goals.reduce((total, goal) => total + getGoalProgress(goal), 0) /
+          goals.length
+      );
 
   function getDaysRemainingText(targetDate?: string) {
     if (!targetDate) {
@@ -194,58 +234,189 @@ export default function DashboardPage() {
   }
 }
 
-  return (
-    <>
-      <Navbar />
+return (
+  <>
+    <Navbar />
 
-      <main className="min-h-screen bg-black px-6 py-10 text-white">
-        <section className="mx-auto max-w-6xl">
-          <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <main className="min-h-screen bg-slate-950 px-4 py-6 text-white md:px-6 md:py-10">
+      <section className="mx-auto max-w-7xl">
+        {/* Header */}
+        <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl md:p-8">
+          <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" />
+          <div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
+
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-sm font-semibold text-blue-300">GoalNow AI</p>
-              <h1 className="mt-2 text-4xl font-black">Your Dashboard</h1>
-              <p className="mt-3 max-w-2xl text-zinc-400">
+              <p className="text-sm font-black uppercase tracking-[0.25em] text-cyan-300">
+                GoalNow-AI Dashboard
+              </p>
+
+              <h1 className="mt-3 text-4xl font-black tracking-tight md:text-5xl">
+                Your Goal Command Center
+              </h1>
+
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-400 md:text-base">
                 Manage normal habit trackers and complex AI-based goal trackers
-                from one place.
+                from one clean, professional workspace.
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/goals/new"
-                className="rounded-xl bg-white px-5 py-3 font-semibold text-black transition hover:bg-zinc-200"
+                className="rounded-2xl bg-cyan-400 px-6 py-4 text-center text-sm font-black text-slate-950 transition hover:bg-cyan-300"
               >
-                Create New Goal
+                + Create New Goal
               </Link>
 
               {goals.length > 0 && (
                 <button
+                  type="button"
                   onClick={clearAllGoals}
-                  className="rounded-xl border border-red-400/30 bg-red-400/10 px-5 py-3 font-semibold text-red-300 transition hover:bg-red-400/20"
+                  className="rounded-2xl border border-red-400/30 bg-red-400/10 px-6 py-4 text-sm font-bold text-red-200 transition hover:bg-red-400/20"
                 >
-                  Clear All Goals
+                  Clear All
                 </button>
               )}
             </div>
           </div>
-          {goalError && (
-            <div className="mb-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
-              {goalError}
-            </div>
-          )}
+        </div>
 
-          <div className="mb-8 grid gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 md:grid-cols-2 lg:grid-cols-4">
+        {goalError && (
+          <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
+            {goalError}
+          </div>
+        )}
+
+        {/* Main Stats */}
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-slate-400">
+                Total Goals
+              </p>
+              <span className="rounded-2xl bg-cyan-400/10 px-3 py-1 text-xs font-bold text-cyan-300">
+                All
+              </span>
+            </div>
+
+            <h2 className="mt-4 text-4xl font-black">{goals.length}</h2>
+
+            <p className="mt-2 text-xs text-slate-500">
+              Total goals created in your account
+            </p>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-slate-400">
+                Average Progress
+              </p>
+              <span className="rounded-2xl bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-300">
+                Avg
+              </span>
+            </div>
+
+            <h2 className="mt-4 text-4xl font-black">{averageProgress}%</h2>
+
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-emerald-400"
+                style={{ width: `${averageProgress}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-slate-400">
+                In Progress
+              </p>
+              <span className="rounded-2xl bg-blue-400/10 px-3 py-1 text-xs font-bold text-blue-300">
+                Active
+              </span>
+            </div>
+
+            <h2 className="mt-4 text-4xl font-black">
+              {inProgressGoals.length}
+            </h2>
+
+            <p className="mt-2 text-xs text-slate-500">
+              Goals still being worked on
+            </p>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-xl">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-slate-400">
+                Completed
+              </p>
+              <span className="rounded-2xl bg-purple-400/10 px-3 py-1 text-xs font-bold text-purple-300">
+                Done
+              </span>
+            </div>
+
+            <h2 className="mt-4 text-4xl font-black">
+              {completedGoals.length}
+            </h2>
+
+            <p className="mt-2 text-xs text-slate-500">
+              Goals completed fully
+            </p>
+          </div>
+        </div>
+
+        {/* Secondary Stats */}
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-5">
+            <p className="text-sm text-slate-400">Normal Trackers</p>
+            <h3 className="mt-2 text-3xl font-black text-emerald-300">
+              {normalGoals.length}
+            </h3>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-5">
+            <p className="text-sm text-slate-400">Complex AI Trackers</p>
+            <h3 className="mt-2 text-3xl font-black text-cyan-300">
+              {complexGoals.length}
+            </h3>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-5">
+            <p className="text-sm text-slate-400">Overdue Goals</p>
+            <h3 className="mt-2 text-3xl font-black text-red-300">
+              {overdueGoals.length}
+            </h3>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="mt-8 rounded-[2rem] border border-white/10 bg-white/5 p-4 md:p-5">
+          <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-xl font-black">Goal Library</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Search, filter, and open your trackers quickly.
+              </p>
+            </div>
+
+            <p className="text-sm text-slate-500">
+              Showing {sortedGoals.length} of {goals.length}
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Search goals..."
-              className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-blue-400 md:col-span-2"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-cyan-400 xl:col-span-2"
             />
 
             <select
               value={selectedCategory}
               onChange={(event) => setSelectedCategory(event.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-blue-400"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none focus:border-cyan-400"
             >
               <option>All Categories</option>
               <option>Career / Job</option>
@@ -259,7 +430,7 @@ export default function DashboardPage() {
             <select
               value={selectedTrackerType}
               onChange={(event) => setSelectedTrackerType(event.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-blue-400"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none focus:border-cyan-400"
             >
               <option>All Trackers</option>
               <option value="normal">Normal Tracker</option>
@@ -269,172 +440,222 @@ export default function DashboardPage() {
             <select
               value={sortBy}
               onChange={(event) => setSortBy(event.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none focus:border-blue-400 md:col-span-2"
+              className="w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none focus:border-cyan-400"
             >
               <option>Newest First</option>
               <option>Oldest First</option>
               <option>Highest Progress</option>
               <option>Lowest Progress</option>
+              <option>Highest Priority</option>
+              <option>Lowest Priority</option>
               <option>A to Z</option>
               <option>Z to A</option>
             </select>
-
-            <button
-              onClick={() => {
-                setSearchTerm("");
-                setSelectedCategory("All Categories");
-                setSelectedTrackerType("All Trackers");
-                setSortBy("Newest First");
-              }}
-              className="w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 font-semibold text-white transition hover:bg-white/20 md:col-span-2"
-            >
-              Clear Filters
-            </button>
           </div>
 
-          <div className="mb-8 grid gap-4 md:grid-cols-4">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <p className="text-sm text-zinc-400">Total Goals</p>
-              <h2 className="mt-2 text-3xl font-black">{goals.length}</h2>
-            </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSearchTerm("");
+              setSelectedCategory("All Categories");
+              setSelectedTrackerType("All Trackers");
+              setSortBy("Newest First");
+            }}
+            className="mt-3 w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/20 md:w-fit"
+          >
+            Clear Filters
+          </button>
+        </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <p className="text-sm text-zinc-400">Visible Goals</p>
-              <h2 className="mt-2 text-3xl font-black">{filteredGoals.length}</h2>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <p className="text-sm text-zinc-400">Completed</p>
-              <h2 className="mt-2 text-3xl font-black">
-                {completedGoals.length}
-              </h2>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <p className="text-sm text-zinc-400">In Progress</p>
-              <h2 className="mt-2 text-3xl font-black">
-                {inProgressGoals.length}
-              </h2>
-            </div>
-          </div>
-
+        {/* Content */}
+        <div className="mt-8">
           {isLoadingGoals ? (
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
+            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-10 text-center">
               <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-              <h2 className="text-2xl font-bold">Loading your goals...</h2>
-              <p className="mt-3 text-zinc-400">
+              <h2 className="text-2xl font-black">Loading your goals...</h2>
+              <p className="mt-3 text-slate-400">
                 Fetching your account-based goals from Supabase.
               </p>
             </div>
           ) : goals.length === 0 ? (
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-400/10 text-2xl">
+            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-8 text-center md:p-12">
+              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-cyan-400/10 text-3xl">
                 ✦
               </div>
 
-              <h2 className="text-2xl font-bold">No goals created yet</h2>
+              <h2 className="text-3xl font-black">No goals created yet</h2>
 
-              <p className="mx-auto mt-3 max-w-xl text-zinc-400">
-                Create your first normal tracker or complex AI tracker.
+              <p className="mx-auto mt-3 max-w-xl text-slate-400">
+                Create your first normal tracker or complex AI tracker and start
+                building your goal system.
               </p>
 
               <Link
                 href="/goals/new"
-                className="mt-6 inline-block rounded-xl bg-white px-5 py-3 font-semibold text-black transition hover:bg-zinc-200"
+                className="mt-7 inline-flex rounded-2xl bg-cyan-400 px-6 py-4 font-black text-slate-950 transition hover:bg-cyan-300"
               >
                 Create First Goal
               </Link>
             </div>
           ) : filteredGoals.length === 0 ? (
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
-              <h2 className="text-2xl font-bold">No matching goals found</h2>
-              <p className="mt-3 text-zinc-400">
-                Try another search or filter.
+            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-8 text-center md:p-12">
+              <h2 className="text-3xl font-black">No matching goals found</h2>
+              <p className="mt-3 text-slate-400">
+                Try changing your search or filters.
               </p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm("");
+                  setSelectedCategory("All Categories");
+                  setSelectedTrackerType("All Trackers");
+                  setSortBy("Newest First");
+                }}
+                className="mt-6 rounded-2xl bg-white px-6 py-3 font-black text-slate-950 transition hover:bg-slate-200"
+              >
+                Reset Filters
+              </button>
             </div>
           ) : (
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-5 lg:grid-cols-2">
               {sortedGoals.map((goal) => {
                 const progress = getGoalProgress(goal);
                 const completed = getCompletedCount(goal);
                 const total = getTotalCount(goal);
+                const isCompleted = progress === 100;
+                const isOverdue = overdueGoals.some(
+                  (item) => item.id === goal.id
+                );
 
                 return (
                   <Link
                     key={goal.id}
                     href={`/goals/${goal.id}`}
-                    className="rounded-3xl border border-white/10 bg-white/5 p-6 transition hover:-translate-y-1 hover:border-blue-400/40 hover:bg-white/10"
+                    className="group rounded-[2rem] border border-white/10 bg-white/5 p-5 shadow-xl transition hover:-translate-y-1 hover:border-cyan-400/40 hover:bg-white/[0.08] md:p-6"
                   >
-                    <div className="mb-4 flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-sm text-zinc-400">{goal.category}</p>
-                        <h2 className="mt-1 text-2xl font-bold">{goal.name}</h2>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                          <span
+                            className={
+                              goal.trackerType === "normal"
+                                ? "rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-300"
+                                : "rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-bold text-cyan-300"
+                            }
+                          >
+                            {goal.trackerType === "normal"
+                              ? "Normal Tracker"
+                              : "Complex AI"}
+                          </span>
+
+                          {isCompleted && (
+                            <span className="rounded-full border border-purple-400/30 bg-purple-400/10 px-3 py-1 text-xs font-bold text-purple-300">
+                              Completed
+                            </span>
+                          )}
+
+                          {isOverdue && (
+                            <span className="rounded-full border border-red-400/30 bg-red-400/10 px-3 py-1 text-xs font-bold text-red-300">
+                              Overdue
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-sm font-semibold text-slate-400">
+                          {goal.category}
+                        </p>
+
+                        <h2 className="mt-1 truncate text-2xl font-black text-white group-hover:text-cyan-200">
+                          {goal.name}
+                        </h2>
                       </div>
 
-                      <span
-                        className={
-                          goal.trackerType === "normal"
-                            ? "rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-300"
-                            : "rounded-full border border-blue-400/30 bg-blue-400/10 px-3 py-1 text-xs font-semibold text-blue-300"
-                        }
-                      >
-                        {goal.trackerType === "normal"
-                          ? "Normal"
-                          : "Complex AI"}
-                      </span>
+                      <div className="shrink-0 rounded-3xl border border-white/10 bg-black/30 px-4 py-3 text-center">
+                        <p className="text-2xl font-black">{progress}%</p>
+                        <p className="text-xs text-slate-500">Progress</p>
+                      </div>
                     </div>
 
-                    <div className="grid gap-3 text-sm text-zinc-300 md:grid-cols-2">
-                      <p>
-                        <span className="text-zinc-500">Duration:</span>{" "}
-                        {goal.duration}
+                    <div className="mt-5 grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
+                      <p className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <span className="block text-xs text-slate-500">
+                          Duration
+                        </span>
+                        <span className="font-semibold">{goal.duration}</span>
                       </p>
 
-                      <p>
-                        <span className="text-zinc-500">Priority:</span>{" "}
-                        {goal.priority || "Medium"}
+                      <p className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <span className="block text-xs text-slate-500">
+                          Priority
+                        </span>
+                        <span className="font-semibold">
+                          {goal.priority || "Medium"}
+                        </span>
                       </p>
 
-                      <p>
-                        <span className="text-zinc-500">Target:</span>{" "}
-                        {goal.targetDate
-                          ? new Date(goal.targetDate).toLocaleDateString()
-                          : "Not set"}
+                      <p className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <span className="block text-xs text-slate-500">
+                          Target
+                        </span>
+                        <span className="font-semibold">
+                          {goal.targetDate
+                            ? new Date(goal.targetDate).toLocaleDateString()
+                            : "Not set"}
+                        </span>
                       </p>
 
-                      <p>
-                        <span className="text-zinc-500">Deadline:</span>{" "}
-                        {getDaysRemainingText(goal.targetDate)}
+                      <p className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                        <span className="block text-xs text-slate-500">
+                          Deadline
+                        </span>
+                        <span className="font-semibold">
+                          {getDaysRemainingText(goal.targetDate)}
+                        </span>
                       </p>
 
                       {goal.trackerType === "complex" && (
-                        <p>
-                          <span className="text-zinc-500">Active Day:</span>{" "}
-                          Day {goal.activeDayNumber || 1}
+                        <p className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                          <span className="block text-xs text-slate-500">
+                            Active Day
+                          </span>
+                          <span className="font-semibold">
+                            Day {goal.activeDayNumber || 1}
+                          </span>
                         </p>
                       )}
 
                       {goal.trackerType === "normal" && (
-                        <p>
-                          <span className="text-zinc-500">Frequency:</span>{" "}
-                          {goal.normalFrequency || "daily"}
+                        <p className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                          <span className="block text-xs text-slate-500">
+                            Frequency
+                          </span>
+                          <span className="font-semibold capitalize">
+                            {goal.normalFrequency || "daily"}
+                          </span>
                         </p>
                       )}
                     </div>
 
                     <div className="mt-5">
                       <div className="mb-2 flex items-center justify-between text-sm">
-                        <span className="text-zinc-400">
-                          Progress {completed}/{total}
+                        <span className="text-slate-400">
+                          Completed {completed}/{total}
                         </span>
-                        <span className="font-semibold text-white">
+                        <span className="font-bold text-white">
                           {progress}%
                         </span>
                       </div>
 
-                      <div className="h-3 overflow-hidden rounded-full bg-zinc-800">
+                      <div className="h-3 overflow-hidden rounded-full bg-slate-800">
                         <div
-                          className="h-full rounded-full bg-white"
+                          className={
+                            isCompleted
+                              ? "h-full rounded-full bg-purple-400"
+                              : goal.trackerType === "normal"
+                              ? "h-full rounded-full bg-emerald-400"
+                              : "h-full rounded-full bg-cyan-400"
+                          }
                           style={{ width: `${progress}%` }}
                         />
                       </div>
@@ -444,10 +665,11 @@ export default function DashboardPage() {
               })}
             </div>
           )}
-        </section>
-      </main>
+        </div>
+      </section>
+    </main>
 
-      <Footer />
-    </>
-  );
+    <Footer />
+  </>
+); 
 }
