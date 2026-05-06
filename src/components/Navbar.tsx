@@ -2,15 +2,18 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>("");
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -20,6 +23,12 @@ export default function Navbar() {
       if (!isMounted) return;
 
       setUserEmail(data.user?.email ?? null);
+      setUserName(
+        data.user?.user_metadata?.full_name ||
+          data.user?.user_metadata?.name ||
+          ""
+      );
+
       setIsCheckingAuth(false);
     });
 
@@ -29,6 +38,12 @@ export default function Navbar() {
       if (!isMounted) return;
 
       setUserEmail(session?.user.email ?? null);
+      setUserName(
+        session?.user.user_metadata?.full_name ||
+          session?.user.user_metadata?.name ||
+          ""
+      );
+
       setIsCheckingAuth(false);
     });
 
@@ -52,53 +67,137 @@ export default function Navbar() {
     }
 
     setUserEmail(null);
+    setUserName("");
+    setIsMobileMenuOpen(false);
+
     router.push("/login");
     router.refresh();
   }
 
+  function isActive(path: string) {
+    if (path === "/") {
+      return pathname === "/";
+    }
+
+    return pathname === path || pathname.startsWith(`${path}/`);
+  }
+
+  const firstLetter =
+    userName.trim().charAt(0).toUpperCase() ||
+    userEmail?.trim().charAt(0).toUpperCase() ||
+    "U";
+
+  const displayName = userName || userEmail?.split("@")[0] || "User";
+
+  const loggedInLinks = [
+    {
+      label: "Dashboard",
+      href: "/dashboard",
+    },
+    {
+      label: "Create Goal",
+      href: "/goals/new",
+    },
+    {
+      label: "Profile",
+      href: "/profile",
+    },
+  ];
+
+  const publicLinks = [
+    {
+      label: "Home",
+      href: "/",
+    },
+    {
+      label: "Features",
+      href: "/#features",
+    },
+  ];
+
   return (
-    <nav className="sticky top-0 z-50 border-b border-white/10 bg-zinc-950/90 px-6 py-4 text-white backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-        <Link href="/" className="text-lg font-bold tracking-tight">
-          GoalNow AI
+    <nav className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/85 px-4 py-3 text-white backdrop-blur-2xl">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+        {/* Logo */}
+        <Link
+          href="/"
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="group flex items-center gap-3"
+        >
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-300 to-blue-500 text-lg font-black text-slate-950 shadow-lg shadow-cyan-500/20 transition group-hover:scale-105">
+            G
+          </div>
+
+          <div className="leading-tight">
+            <p className="text-lg font-black tracking-tight">
+              GoalNow<span className="text-cyan-300">-AI</span>
+            </p>
+            <p className="hidden text-xs font-medium text-slate-400 sm:block">
+              Plan. Track. Improve.
+            </p>
+          </div>
         </Link>
 
-        <div className="flex items-center gap-3 text-sm">
+        {/* Desktop Center Links */}
+        <div className="hidden items-center rounded-2xl border border-white/10 bg-white/5 p-1 text-sm lg:flex">
+          {userEmail
+            ? loggedInLinks.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={
+                    isActive(item.href)
+                      ? "rounded-xl bg-white px-4 py-2 font-bold text-slate-950 shadow-sm"
+                      : "rounded-xl px-4 py-2 font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+                  }
+                >
+                  {item.label}
+                </Link>
+              ))
+            : publicLinks.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={
+                    isActive(item.href)
+                      ? "rounded-xl bg-white px-4 py-2 font-bold text-slate-950 shadow-sm"
+                      : "rounded-xl px-4 py-2 font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white"
+                  }
+                >
+                  {item.label}
+                </Link>
+              ))}
+        </div>
+
+        {/* Desktop Right Side */}
+        <div className="hidden items-center gap-3 lg:flex">
           {isCheckingAuth ? (
-            <span className="rounded-xl border border-white/10 px-4 py-2 text-zinc-400">
-              Checking...
-            </span>
+            <div className="h-11 w-32 animate-pulse rounded-2xl bg-white/10" />
           ) : userEmail ? (
             <>
               <Link
-                href="/dashboard"
-                className="hidden rounded-xl px-3 py-2 font-medium text-zinc-300 transition hover:bg-white/10 hover:text-white sm:inline"
-              >
-                Dashboard
-              </Link>
-
-              <Link
-                href="/goals/new"
-                className="hidden rounded-xl px-3 py-2 font-medium text-zinc-300 transition hover:bg-white/10 hover:text-white sm:inline"
-              >
-                Create Goal
-              </Link>
-              <Link
                 href="/profile"
-                className="hidden rounded-xl px-3 py-2 font-medium text-zinc-300 transition hover:bg-white/10 hover:text-white sm:inline"
+                className="flex max-w-[260px] items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 transition hover:bg-white/10"
               >
-                Profile
-              </Link>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-cyan-400 text-sm font-black text-slate-950">
+                  {firstLetter}
+                </div>
 
-              <span className="hidden max-w-[180px] truncate rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-cyan-200 md:inline">
-                {userEmail}
-              </span>
+                <div className="min-w-0 leading-tight">
+                  <p className="truncate text-sm font-bold text-white">
+                    {displayName}
+                  </p>
+                  <p className="truncate text-xs text-slate-400">
+                    {userEmail}
+                  </p>
+                </div>
+              </Link>
 
               <button
                 type="button"
                 onClick={handleLogout}
                 disabled={isLoggingOut}
-                className="rounded-xl border border-red-400/30 px-4 py-2 font-semibold text-red-200 transition hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-2xl border border-red-400/30 px-4 py-3 text-sm font-bold text-red-200 transition hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isLoggingOut ? "Logging out..." : "Logout"}
               </button>
@@ -107,21 +206,118 @@ export default function Navbar() {
             <>
               <Link
                 href="/login"
-                className="rounded-xl border border-white/15 px-4 py-2 font-semibold text-white transition hover:bg-white/10"
+                className="rounded-2xl border border-white/15 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10"
               >
                 Login
               </Link>
 
               <Link
                 href="/signup"
-                className="rounded-xl bg-white px-4 py-2 font-semibold text-black transition hover:bg-zinc-200"
+                className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200"
               >
-                Sign up
+                Start Free
               </Link>
             </>
           )}
         </div>
+
+        {/* Mobile Menu Button */}
+        <button
+          type="button"
+          onClick={() => setIsMobileMenuOpen((current) => !current)}
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-2xl font-bold transition hover:bg-white/10 lg:hidden"
+          aria-label="Open menu"
+        >
+          {isMobileMenuOpen ? "×" : "☰"}
+        </button>
       </div>
+
+      {/* Mobile Menu */}
+      {isMobileMenuOpen && (
+        <div className="mx-auto mt-3 max-w-7xl rounded-3xl border border-white/10 bg-slate-900 p-3 shadow-2xl lg:hidden">
+          {isCheckingAuth ? (
+            <div className="rounded-2xl bg-white/5 px-4 py-4 text-sm text-slate-400">
+              Checking account...
+            </div>
+          ) : userEmail ? (
+            <>
+              <div className="mb-3 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cyan-400 font-black text-slate-950">
+                  {firstLetter}
+                </div>
+
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-white">
+                    {displayName}
+                  </p>
+                  <p className="truncate text-xs text-slate-400">
+                    {userEmail}
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {loggedInLinks.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={
+                      isActive(item.href)
+                        ? "block rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-950"
+                        : "block rounded-2xl px-4 py-3 text-sm font-bold text-slate-300 transition hover:bg-white/10 hover:text-white"
+                    }
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="block w-full rounded-2xl border border-red-400/30 px-4 py-3 text-left text-sm font-bold text-red-200 transition hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isLoggingOut ? "Logging out..." : "Logout"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-2">
+              {publicLinks.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={
+                    isActive(item.href)
+                      ? "block rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-950"
+                      : "block rounded-2xl px-4 py-3 text-sm font-bold text-slate-300 transition hover:bg-white/10 hover:text-white"
+                  }
+                >
+                  {item.label}
+                </Link>
+              ))}
+
+              <Link
+                href="/login"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block rounded-2xl border border-white/15 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/10"
+              >
+                Login
+              </Link>
+
+              <Link
+                href="/signup"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block rounded-2xl bg-white px-4 py-3 text-center text-sm font-black text-slate-950 transition hover:bg-cyan-200"
+              >
+                Start Free
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
     </nav>
   );
 }
