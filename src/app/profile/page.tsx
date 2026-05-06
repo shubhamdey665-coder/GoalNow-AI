@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { createClient } from "@/lib/supabase/client";
 
@@ -10,12 +11,18 @@ export default function ProfilePage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
-  const [savingName, setSavingName] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
+  const [primaryGoal, setPrimaryGoal] = useState("Coding / Software Job");
+  const [currentLevel, setCurrentLevel] = useState("Beginner");
+  const [dailyTime, setDailyTime] = useState("1-2 hours");
+
+  const [createdAt, setCreatedAt] = useState("");
+  const [lastSignInAt, setLastSignInAt] = useState("");
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -34,12 +41,23 @@ export default function ProfilePage() {
         return;
       }
 
-      setEmail(data.user.email ?? "");
+      const user = data.user;
+      const metadata = user.user_metadata || {};
+
+      setEmail(user.email || "");
       setFullName(
-        data.user.user_metadata?.full_name ||
-          data.user.user_metadata?.name ||
+        metadata.full_name ||
+          metadata.name ||
+          user.email?.split("@")[0] ||
           ""
       );
+
+      setPrimaryGoal(metadata.primary_goal || "Coding / Software Job");
+      setCurrentLevel(metadata.current_level || "Beginner");
+      setDailyTime(metadata.daily_time || "1-2 hours");
+
+      setCreatedAt(user.created_at || "");
+      setLastSignInAt(user.last_sign_in_at || "");
 
       setLoading(false);
     }
@@ -47,7 +65,7 @@ export default function ProfilePage() {
     loadUser();
   }, [router]);
 
-  async function handleUpdateName(event: FormEvent<HTMLFormElement>) {
+  async function handleUpdateProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setSuccessMessage("");
@@ -58,7 +76,7 @@ export default function ProfilePage() {
       return;
     }
 
-    setSavingName(true);
+    setSavingProfile(true);
 
     const supabase = createClient();
 
@@ -66,17 +84,20 @@ export default function ProfilePage() {
       data: {
         full_name: fullName.trim(),
         name: fullName.trim(),
+        primary_goal: primaryGoal,
+        current_level: currentLevel,
+        daily_time: dailyTime,
       },
     });
 
-    setSavingName(false);
+    setSavingProfile(false);
 
     if (error) {
       setErrorMessage(error.message);
       return;
     }
 
-    setSuccessMessage("Profile name updated successfully.");
+    setSuccessMessage("Profile updated successfully.");
     router.refresh();
   }
 
@@ -118,6 +139,7 @@ export default function ProfilePage() {
 
   async function handleLogout() {
     setLoggingOut(true);
+    setErrorMessage("");
 
     const supabase = createClient();
 
@@ -139,129 +161,213 @@ export default function ProfilePage() {
     email.trim().charAt(0).toUpperCase() ||
     "U";
 
+  const goalOptions = [
+    "Coding / Software Job",
+    "Study / Career",
+    "Fitness / Health",
+    "Business / Side Income",
+    "Personal Productivity",
+    "Other",
+  ];
+
+  const levelOptions = ["Beginner", "Intermediate", "Advanced"];
+
+  const timeOptions = [
+    "Less than 30 minutes",
+    "30 minutes - 1 hour",
+    "1-2 hours",
+    "2-4 hours",
+    "4+ hours",
+  ];
+
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-950 px-6 py-10 text-white">
-        <section className="mx-auto max-w-5xl">
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
-            <p className="text-slate-300">Loading account...</p>
-          </div>
-        </section>
-      </main>
+      <>
+        <Navbar />
+
+        <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
+          <section className="mx-auto max-w-5xl">
+            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-10 text-center">
+              <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+              <h1 className="text-3xl font-black">Loading profile...</h1>
+              <p className="mt-3 text-slate-400">
+                Fetching your account details.
+              </p>
+            </div>
+          </section>
+        </main>
+
+        <Footer />
+      </>
     );
   }
 
   return (
     <>
-      <main className="min-h-screen bg-slate-950 px-6 py-8 text-white">
-        <section className="mx-auto max-w-6xl">
-          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-cyan-300">
-                Account Settings
-              </p>
+      <Navbar />
 
-              <h1 className="mt-2 text-3xl font-black tracking-tight md:text-4xl">
-                Manage your profile
-              </h1>
+      <main className="min-h-screen bg-slate-950 px-4 py-6 text-white md:px-6 md:py-10">
+        <section className="mx-auto max-w-7xl">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-slate-300 transition hover:bg-white/10 hover:text-white"
+          >
+            ← Back to Dashboard
+          </Link>
 
-              <p className="mt-2 max-w-2xl text-sm text-slate-400">
-                Update your name, password, and account preferences for your
-                GoalNow-AI account.
-              </p>
-            </div>
+          {/* Header */}
+          <div className="mt-6 overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl md:p-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-sm font-black uppercase tracking-[0.25em] text-cyan-300">
+                  Account Settings
+                </p>
 
-            <Link
-              href="/dashboard"
-              className="w-fit rounded-2xl border border-white/10 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/20"
-            >
-              Back to Dashboard
-            </Link>
-          </div>
+                <h1 className="mt-3 text-4xl font-black tracking-tight md:text-5xl">
+                  Manage your profile
+                </h1>
 
-          {(successMessage || errorMessage) && (
-            <div
-              className={
-                successMessage
-                  ? "mb-6 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-4 text-sm text-emerald-200"
-                  : "mb-6 rounded-2xl border border-red-400/30 bg-red-400/10 px-5 py-4 text-sm text-red-200"
-              }
-            >
-              {successMessage || errorMessage}
-            </div>
-          )}
+                <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-400 md:text-base">
+                  Update your personal details, goal preferences, account
+                  settings, and password from one clean profile page.
+                </p>
+              </div>
 
-          <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-            <aside className="space-y-6">
-              <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl">
+              <div className="rounded-3xl border border-white/10 bg-black/30 p-5">
                 <div className="flex items-center gap-4">
                   <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-cyan-400 text-3xl font-black text-slate-950">
                     {firstLetter}
                   </div>
 
                   <div className="min-w-0">
-                    <h2 className="truncate text-xl font-black">
+                    <h2 className="truncate text-2xl font-black">
                       {fullName || "GoalNow User"}
                     </h2>
 
                     <p className="mt-1 truncate text-sm text-slate-400">
                       {email}
                     </p>
-                  </div>
-                </div>
 
-                <div className="mt-6 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm text-slate-400">Account</span>
-                    <span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-300">
-                      Active
+                    <span className="mt-3 inline-flex rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-300">
+                      Active Account
                     </span>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm text-slate-400">Email</span>
-                    <span className="truncate text-sm font-semibold text-slate-200">
+          {(successMessage || errorMessage) && (
+            <div
+              className={
+                successMessage
+                  ? "mt-6 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm text-emerald-200"
+                  : "mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200"
+              }
+            >
+              {successMessage || errorMessage}
+            </div>
+          )}
+
+          <div className="mt-6 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+            {/* Left Side */}
+            <aside className="space-y-6">
+              <section className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-xl">
+                <h2 className="text-2xl font-black">Account Overview</h2>
+
+                <div className="mt-5 space-y-3">
+                  <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                    <p className="text-sm text-slate-400">Email</p>
+                    <p className="mt-1 break-all font-bold text-white">
                       {email}
-                    </span>
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                    <p className="text-sm text-slate-400">Primary Goal</p>
+                    <p className="mt-1 font-bold text-white">{primaryGoal}</p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                    <p className="text-sm text-slate-400">Current Level</p>
+                    <p className="mt-1 font-bold text-white">{currentLevel}</p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                    <p className="text-sm text-slate-400">
+                      Daily Available Time
+                    </p>
+                    <p className="mt-1 font-bold text-white">{dailyTime}</p>
                   </div>
                 </div>
+              </section>
+
+              <section className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-xl">
+                <h2 className="text-2xl font-black">Account Activity</h2>
+
+                <div className="mt-5 space-y-3">
+                  <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                    <p className="text-sm text-slate-400">Account Created</p>
+                    <p className="mt-1 font-bold text-white">
+                      {createdAt
+                        ? new Date(createdAt).toLocaleDateString()
+                        : "Not available"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                    <p className="text-sm text-slate-400">Last Sign In</p>
+                    <p className="mt-1 font-bold text-white">
+                      {lastSignInAt
+                        ? new Date(lastSignInAt).toLocaleDateString()
+                        : "Not available"}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-[2rem] border border-red-400/20 bg-red-400/10 p-6">
+                <h2 className="text-xl font-black text-red-100">
+                  Session Control
+                </h2>
+
+                <p className="mt-2 text-sm leading-6 text-red-100/80">
+                  Logout from this device when you finish using GoalNow-AI.
+                </p>
 
                 <button
                   type="button"
                   onClick={handleLogout}
                   disabled={loggingOut}
-                  className="mt-6 w-full rounded-2xl border border-red-400/30 px-5 py-3 text-sm font-bold text-red-200 transition hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-5 w-full rounded-2xl border border-red-300/30 bg-red-300/10 px-5 py-3 text-sm font-black text-red-100 transition hover:bg-red-300/20 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loggingOut ? "Logging out..." : "Logout"}
                 </button>
               </section>
-
-              <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-                <h3 className="text-lg font-black">Professional app tips</h3>
-
-                <ul className="mt-4 space-y-3 text-sm text-slate-400">
-                  <li>• Keep your profile name real and readable.</li>
-                  <li>• Use a strong password for account safety.</li>
-                  <li>• Your email is used for login and account recovery.</li>
-                </ul>
-              </section>
             </aside>
 
+            {/* Right Side Forms */}
             <div className="space-y-6">
-              <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl">
+              <section className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl">
                 <div>
-                  <h2 className="text-2xl font-black">Profile information</h2>
+                  <p className="text-sm font-bold text-cyan-300">
+                    Personal Details
+                  </p>
 
-                  <p className="mt-2 text-sm text-slate-400">
-                    This name can be used across GoalNow-AI pages and future AI
-                    mentor personalization.
+                  <h2 className="mt-2 text-3xl font-black">
+                    Update profile information
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    These details help GoalNow-AI personalize your dashboard and
+                    future mentor experience.
                   </p>
                 </div>
 
-                <form onSubmit={handleUpdateName} className="mt-6 space-y-5">
+                <form onSubmit={handleUpdateProfile} className="mt-6 space-y-5">
                   <div>
                     <label className="text-sm font-bold text-slate-200">
-                      Full name
+                      Full Name
                     </label>
 
                     <input
@@ -269,85 +375,154 @@ export default function ProfilePage() {
                       value={fullName}
                       onChange={(event) => setFullName(event.target.value)}
                       placeholder="Enter your full name"
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
+                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-cyan-400"
                     />
                   </div>
 
                   <div>
                     <label className="text-sm font-bold text-slate-200">
-                      Email address
+                      Email Address
                     </label>
 
                     <input
                       type="email"
                       value={email}
                       disabled
-                      className="mt-2 w-full cursor-not-allowed rounded-2xl border border-white/10 bg-slate-900/60 px-4 py-3 text-slate-400 outline-none"
+                      className="mt-2 w-full cursor-not-allowed rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-slate-400 outline-none"
                     />
 
                     <p className="mt-2 text-xs text-slate-500">
-                      Email changing is kept disabled for now to avoid login
-                      issues. We can add it later with email verification.
+                      Email changing is disabled for now to avoid account
+                      verification issues.
                     </p>
+                  </div>
+
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-bold text-slate-200">
+                        Primary Goal
+                      </label>
+
+                      <select
+                        value={primaryGoal}
+                        onChange={(event) =>
+                          setPrimaryGoal(event.target.value)
+                        }
+                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none focus:border-cyan-400"
+                      >
+                        {goalOptions.map((goal) => (
+                          <option key={goal} value={goal}>
+                            {goal}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-bold text-slate-200">
+                        Current Level
+                      </label>
+
+                      <select
+                        value={currentLevel}
+                        onChange={(event) =>
+                          setCurrentLevel(event.target.value)
+                        }
+                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none focus:border-cyan-400"
+                      >
+                        {levelOptions.map((level) => (
+                          <option key={level} value={level}>
+                            {level}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-bold text-slate-200">
+                      Daily Available Time
+                    </label>
+
+                    <select
+                      value={dailyTime}
+                      onChange={(event) => setDailyTime(event.target.value)}
+                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none focus:border-cyan-400"
+                    >
+                      {timeOptions.map((time) => (
+                        <option key={time} value={time}>
+                          {time}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <button
                     type="submit"
-                    disabled={savingName}
-                    className="rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={savingProfile}
+                    className="rounded-2xl bg-cyan-400 px-6 py-4 font-black text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {savingName ? "Saving..." : "Save Profile"}
+                    {savingProfile ? "Saving Profile..." : "Save Profile"}
                   </button>
                 </form>
               </section>
 
-              <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl">
+              <section className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl">
                 <div>
-                  <h2 className="text-2xl font-black">Change password</h2>
+                  <p className="text-sm font-bold text-purple-300">
+                    Security
+                  </p>
 
-                  <p className="mt-2 text-sm text-slate-400">
-                    Update your login password. Choose something strong and
-                    memorable.
+                  <h2 className="mt-2 text-3xl font-black">
+                    Change password
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    Update your password to keep your GoalNow-AI account safe.
                   </p>
                 </div>
 
                 <form onSubmit={handleUpdatePassword} className="mt-6 space-y-5">
-                  <div>
-                    <label className="text-sm font-bold text-slate-200">
-                      New password
-                    </label>
+                  <div className="grid gap-5 md:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-bold text-slate-200">
+                        New Password
+                      </label>
 
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(event) => setNewPassword(event.target.value)}
-                      placeholder="Enter new password"
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
-                    />
-                  </div>
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(event) =>
+                          setNewPassword(event.target.value)
+                        }
+                        placeholder="Minimum 6 characters"
+                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-purple-400"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="text-sm font-bold text-slate-200">
-                      Confirm new password
-                    </label>
+                    <div>
+                      <label className="text-sm font-bold text-slate-200">
+                        Confirm Password
+                      </label>
 
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(event) =>
-                        setConfirmPassword(event.target.value)
-                      }
-                      placeholder="Confirm new password"
-                      className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400"
-                    />
+                      <input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(event) =>
+                          setConfirmPassword(event.target.value)
+                        }
+                        placeholder="Repeat new password"
+                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-purple-400"
+                      />
+                    </div>
                   </div>
 
                   <button
                     type="submit"
                     disabled={savingPassword}
-                    className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-2xl bg-white px-6 py-4 font-black text-slate-950 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {savingPassword ? "Updating..." : "Update Password"}
+                    {savingPassword ? "Updating Password..." : "Update Password"}
                   </button>
                 </form>
               </section>

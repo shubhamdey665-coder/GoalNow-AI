@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
+import { useRouter } from "next/navigation";
 import Footer from "@/components/Footer";
 import {
   createGoalInSupabase,
@@ -16,6 +17,7 @@ import {
 import type { Goal } from "@/types/goal";
 
 export default function NewGoalPage() {
+  const router = useRouter();
   const [goalName, setGoalName] = useState("");
   const [category, setCategory] = useState("Career / Job");
   const [duration, setDuration] = useState("1 Year");
@@ -181,8 +183,13 @@ export default function NewGoalPage() {
     }
     return "";
   }
-  async function handleGeneratePlan() {
-    if (isGenerating || goalSaved) return;
+  
+
+  
+
+   async function handleGeneratePlan() {
+  if (isGenerating || goalSaved) return;
+
   if (goalNameError) {
     setMessage(goalNameError);
     setPlan([]);
@@ -209,36 +216,39 @@ export default function NewGoalPage() {
     return;
   }
 
+  setIsGenerating(true);
+  setMessage("");
+
   let goals: Goal[] = [];
 
-    try {
-      goals = await getGoalsFromSupabase();
-    } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Could not check your existing goals."
-      );
-      setPlan([]);
-      setCompletedTasks([]);
-      setGoalSaved(false);
-      return;
-    }
-
-    const duplicateGoal = goals.find(
-      (goal) =>
-        goal.name.toLowerCase().trim() === goalName.toLowerCase().trim()
+  try {
+    goals = await getGoalsFromSupabase();
+  } catch (error) {
+    setMessage(
+      error instanceof Error
+        ? error.message
+        : "Could not check your existing goals."
     );
+    setPlan([]);
+    setCompletedTasks([]);
+    setGoalSaved(false);
+    setIsGenerating(false);
+    return;
+  }
 
-    if (duplicateGoal) {
-      setMessage("A goal with this name already exists. Please use a different name.");
-      setPlan([]);
-      setCompletedTasks([]);
-      setGoalSaved(false);
-      return;
-    }
+  const duplicateGoal = goals.find(
+    (goal) =>
+      goal.name.toLowerCase().trim() === goalName.toLowerCase().trim()
+  );
 
-  setIsGenerating(true);
+  if (duplicateGoal) {
+    setMessage("A goal with this name already exists. Please use a different name.");
+    setPlan([]);
+    setCompletedTasks([]);
+    setGoalSaved(false);
+    setIsGenerating(false);
+    return;
+  }
 
   let complexPlanDays =
     trackerType === "complex"
@@ -350,16 +360,20 @@ if (trackerType === "complex" && complexPlanDays) {
 
   setPlan(previewPlan);
   setMessage(
-    `Your complex AI tracker for ${savedGoal.name} is saved successfully with a real Gemini-generated plan.`
-  );
+  `Your complex AI tracker for ${savedGoal.name} is saved successfully. Opening your tracker...`
+);
 } else {
   setPlan([]);
-  setMessage(`Your normal tracker for ${savedGoal.name} is saved successfully.`);
+  setMessage(`Your normal tracker for ${savedGoal.name} is saved successfully. Opening your tracker...`);
 }
 
   setCompletedTasks([]);
   setGoalSaved(true);
-  setIsGenerating(false);
+  
+  setTimeout(() => {
+  router.push(`/goals/${savedGoal.id}`);
+  router.refresh();
+}, 900);
 }
   function toggleTask(index: number) {
     if (completedTasks.includes(index)) {
