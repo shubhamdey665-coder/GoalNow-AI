@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect,useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 import {
   deleteGoalFromSupabase,
@@ -171,6 +172,7 @@ export default function GoalDetailPage() {
   const [normalCalendarDate, setNormalCalendarDate] = useState(new Date());
   const [showFullPlan, setShowFullPlan] = useState(false);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
+  const actionMenuRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
   let isMounted = true;
 
@@ -221,6 +223,32 @@ export default function GoalDetailPage() {
     isMounted = false;
   };
 }, [goalId]);
+useEffect(() => {
+  function handleClickOutside(event: MouseEvent) {
+    if (
+      actionMenuRef.current &&
+      !actionMenuRef.current.contains(event.target as Node)
+    ) {
+      setIsActionMenuOpen(false);
+    }
+  }
+
+  function handleEscapeKey(event: KeyboardEvent) {
+    if (event.key === "Escape") {
+      setIsActionMenuOpen(false);
+    }
+  }
+
+  if (isActionMenuOpen) {
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscapeKey);
+  }
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+    document.removeEventListener("keydown", handleEscapeKey);
+  };
+}, [isActionMenuOpen]);
 
  async function saveUpdatedGoal(updatedGoal: Goal) {
   const previousGoal = goal;
@@ -512,7 +540,7 @@ Last Updated: ${
     <>
       <Navbar />
 
-      <main className="min-h-screen bg-black px-6 py-10 text-white">
+<main className="min-h-screen bg-slate-950 px-4 py-6 text-white md:px-6 md:py-10">
         <section className="mx-auto max-w-4xl">
           <Link href="/dashboard" className="text-sm text-blue-300">
             ← Back to Dashboard
@@ -528,7 +556,7 @@ Last Updated: ${
         </section>
       </main>
 
-      <GoalPageFooter />
+      <Footer />
     </>
   );
 }
@@ -536,8 +564,7 @@ Last Updated: ${
     return (
       <>
         <Navbar />
-
-        <main className="min-h-screen bg-black px-6 py-10 text-white">
+<main className="min-h-screen bg-slate-950 px-4 py-6 text-white md:px-6 md:py-10">
           <section className="mx-auto max-w-4xl">
             <Link href="/dashboard" className="text-sm text-blue-300">
               ← Back to Dashboard
@@ -553,7 +580,7 @@ Last Updated: ${
           </section>
         </main>
 
-        <GoalPageFooter />
+        <Footer />
       </>
     );
   }
@@ -635,13 +662,40 @@ const totalComplexDays = complexPlanDays.length;
 const completedComplexDays = complexPlanDays.filter(
   (day) => day.completed
 ).length;
+const targetDateText = goal.targetDate
+  ? new Date(goal.targetDate).toLocaleDateString()
+  : "Not set";
+
+const createdDateText = new Date(goal.createdAt).toLocaleDateString();
+
+const updatedDateText = goal.updatedAt
+  ? new Date(goal.updatedAt).toLocaleDateString()
+  : "Not updated";
+
+const trackerName =
+  goal.trackerType === "normal" ? "Normal Tracker" : "Complex AI Tracker";
+
+const trackerShortName =
+  goal.trackerType === "normal" ? "Habit System" : "AI Roadmap";
+
+const remainingComplexDays = Math.max(
+  totalComplexDays - completedComplexDays,
+  0
+);
+
+const priorityStyle =
+  goal.priority === "High"
+    ? "border-red-400/30 bg-red-400/10 text-red-200"
+    : goal.priority === "Low"
+    ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+    : "border-yellow-400/30 bg-yellow-400/10 text-yellow-200";
 
  
   return (
     <>
       <Navbar />
 
-      <main className="min-h-screen bg-black px-6 py-10 text-white">
+      <main className="min-h-screen bg-slate-950 px-4 py-6 text-white md:px-6 md:py-10">
         <section className="mx-auto max-w-6xl">
           <Link href="/dashboard" className="text-sm text-blue-300">
             ← Back to Dashboard
@@ -652,164 +706,245 @@ const completedComplexDays = complexPlanDays.filter(
             </div>
           )}
 
-          <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
-            <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-              <div>
-                <p className="text-sm text-zinc-400">{goal.category}</p>
+<div className="mt-8 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/40">
+  {/* Hero Top */}
+  <div className="relative p-6 md:p-8">
+    <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
+    <div className="absolute bottom-0 left-0 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
 
-                <h1 className="mt-2 text-4xl font-black">{goal.name}</h1>
+    <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-3">
+          <span
+            className={
+              goal.trackerType === "normal"
+                ? "rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-black uppercase tracking-wide text-emerald-300"
+                : "rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-black uppercase tracking-wide text-cyan-300"
+            }
+          >
+            {trackerName}
+          </span>
 
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <span
-                    className={
-                      goal.trackerType === "normal"
-                        ? "rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-sm font-semibold text-emerald-300"
-                        : "rounded-full border border-blue-400/30 bg-blue-400/10 px-3 py-1 text-sm font-semibold text-blue-300"
-                    }
-                  >
-                    {goal.trackerType === "normal"
-                      ? "Normal Tracker"
-                      : "Complex AI Tracker"}
-                  </span>
+          <span className={`rounded-full border px-3 py-1 text-xs font-black uppercase tracking-wide ${priorityStyle}`}>
+            {goal.priority || "Medium"} Priority
+          </span>
 
-                  <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-sm text-zinc-300">
-                    {progressPercentage}% Complete
-                  </span>
+          <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-bold text-zinc-300">
+            {goal.status || "active"}
+          </span>
+        </div>
 
-                  <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-sm text-zinc-300">
-                    {goal.status}
-                  </span>
-                </div>
-              </div>
+        <p className="mt-5 text-sm font-bold text-cyan-300">
+          {goal.category}
+        </p>
 
-              <div className="relative flex items-center justify-end">
-                <button
-                  onClick={() => setIsActionMenuOpen((current) => !current)}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-black/20 transition hover:bg-white/20"
-                  aria-label="Open goal actions"
+        <h1 className="mt-2 max-w-4xl text-4xl font-black tracking-tight text-white md:text-5xl">
+          {goal.name}
+        </h1>
+
+        <p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-400 md:text-base">
+          {goal.trackerType === "normal"
+            ? "Track this goal with a simple calendar system, streak monitoring, future-day lock, and honest daily progress."
+            : "Follow your active AI roadmap day, complete today’s tasks, recover missed dates, and use mentor, tests, and reports to improve."}
+        </p>
+      </div>
+
+      {/* Action Menu */}
+<div ref={actionMenuRef} className="relative flex shrink-0 items-center justify-end">
+        <button
+          type="button"
+          onClick={() => setIsActionMenuOpen((current) => !current)}
+          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/10 px-5 py-3 text-sm font-black text-white shadow-lg shadow-black/20 transition hover:bg-white/20"
+          aria-label="Open goal actions"
+        >
+          <span>Actions</span>
+          <span className="text-lg leading-none">⋮</span>
+        </button>
+
+        {isActionMenuOpen && (
+          <div className="absolute right-0 top-14 z-20 w-72 overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 p-2 shadow-2xl shadow-black/60">
+            <div className="border-b border-white/10 px-3 py-3">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
+                Goal Actions
+              </p>
+            </div>
+
+            {goal.trackerType === "complex" && (
+              <>
+                <Link
+                  href={`/goals/${goal.id}/mentor`}
+                  className="block rounded-2xl px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
                 >
-                  <span>Actions</span>
-                  <span className="text-lg leading-none">⋮</span>
+                  🤖 Ask AI Mentor
+                </Link>
+
+                <Link
+                  href={`/goals/${goal.id}/test`}
+                  className="block rounded-2xl px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
+                >
+                  📝 Weekly Test
+                </Link>
+
+                <Link
+                  href={`/goals/${goal.id}/weekly-dashboard`}
+                  className="block rounded-2xl px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
+                >
+                  📅 Weekly Dashboard
+                </Link>
+
+                <Link
+                  href={`/goals/${goal.id}/report`}
+                  className="block rounded-2xl px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
+                >
+                  📊 Progress Report
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsActionMenuOpen(false);
+                    downloadPlanPdf();
+                  }}
+                  className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
+                >
+                  ⬇️ Download Plan PDF
                 </button>
+              </>
+            )}
 
-                {isActionMenuOpen && (
-                  <div className="absolute right-0 top-14 z-20 w-72 overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 p-2 shadow-2xl shadow-black/60">
-                    <div className="border-b border-white/10 px-3 py-3">
-                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">
-                        Goal Actions
-                      </p>
-                    </div>
+            <Link
+              href={`/goals/${goal.id}/edit`}
+              className="block rounded-2xl px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
+            >
+              ✏️ Edit Goal
+            </Link>
 
-                    {goal.trackerType === "complex" && (
-                      <>
-                        <Link
-                          href={`/goals/${goal.id}/mentor`}
-                          className="block rounded-2xl px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
-                        >
-                          Ask AI Mentor
-                        </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setIsActionMenuOpen(false);
+                exportGoalSummary();
+              }}
+              className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
+            >
+              📋 Export Summary
+            </button>
 
-                        <Link
-                          href={`/goals/${goal.id}/test`}
-                          className="block rounded-2xl px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
-                        >
-                          Weekly Test
-                        </Link>
-
-                        <Link
-                          href={`/goals/${goal.id}/weekly-dashboard`}
-                          className="block rounded-2xl px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
-                        >
-                          Weekly Dashboard
-                        </Link>
-
-                        <Link
-                          href={`/goals/${goal.id}/report`}
-                          className="block rounded-2xl px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
-                        >
-                          Progress Report
-                        </Link>
-
-                        <button
-                          onClick={downloadPlanPdf}
-                          className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
-                        >
-                          Download Plan PDF
-                        </button>
-                      </>
-                    )}
-
-                    <Link
-                      href={`/goals/${goal.id}/edit`}
-                      className="block rounded-2xl px-4 py-3 text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
-                    >
-                      Edit Goal
-                    </Link>
-
-                    <button
-                      onClick={exportGoalSummary}
-                      className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold text-zinc-100 transition hover:bg-white/10"
-                    >
-                      Export Summary
-                    </button>
-
-                    <div className="mt-2 border-t border-white/10 pt-2">
-                      <button
-                        onClick={deleteGoal}
-                        className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold text-red-300 transition hover:bg-red-400/10"
-                      >
-                        Delete Goal
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="mt-8">
-              <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="text-zinc-400">Progress</span>
-                <span className="font-semibold">{progressPercentage}%</span>
-              </div>
-
-              <div className="h-3 overflow-hidden rounded-full bg-zinc-800">
-                <div
-                  className="h-full rounded-full bg-white"
-                  style={{ width: `${progressPercentage}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="mt-8 grid gap-4 md:grid-cols-4">
-              <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
-                <p className="text-sm text-zinc-400">Duration</p>
-                <h2 className="mt-2 text-xl font-bold">{goal.duration}</h2>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
-                <p className="text-sm text-zinc-400">Priority</p>
-                <h2 className="mt-2 text-xl font-bold">
-                  {goal.priority || "Medium"}
-                </h2>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
-                <p className="text-sm text-zinc-400">Target Date</p>
-                <h2 className="mt-2 text-xl font-bold">
-                  {goal.targetDate
-                    ? new Date(goal.targetDate).toLocaleDateString()
-                    : "Not set"}
-                </h2>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
-                <p className="text-sm text-zinc-400">Created</p>
-                <h2 className="mt-2 text-xl font-bold">
-                  {new Date(goal.createdAt).toLocaleDateString()}
-                </h2>
-              </div>
+            <div className="mt-2 border-t border-white/10 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsActionMenuOpen(false);
+                  deleteGoal();
+                }}
+                className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold text-red-300 transition hover:bg-red-400/10"
+              >
+                🗑️ Delete Goal
+              </button>
             </div>
           </div>
+        )}
+      </div>
+    </div>
+
+    {/* Progress */}
+    <div className="relative mt-8">
+      <div className="mb-3 flex items-center justify-between gap-4 text-sm">
+        <span className="font-semibold text-zinc-400">Overall Progress</span>
+        <span className="font-black text-white">{progressPercentage}%</span>
+      </div>
+
+      <div className="h-4 overflow-hidden rounded-full bg-white/10">
+        <div
+          className={
+            goal.trackerType === "normal"
+              ? "h-full rounded-full bg-emerald-400 transition-all"
+              : "h-full rounded-full bg-cyan-400 transition-all"
+          }
+          style={{ width: `${progressPercentage}%` }}
+        />
+      </div>
+    </div>
+  </div>
+
+  {/* Stats Grid */}
+  <div className="grid border-t border-white/10 bg-black/20 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="border-white/10 p-5 sm:border-r">
+      <p className="text-sm text-zinc-500">Tracker Type</p>
+      <h2 className="mt-2 text-xl font-black text-white">{trackerShortName}</h2>
+    </div>
+
+    <div className="border-white/10 p-5 lg:border-r">
+      <p className="text-sm text-zinc-500">Duration</p>
+      <h2 className="mt-2 text-xl font-black text-white">{goal.duration}</h2>
+    </div>
+
+    <div className="border-white/10 p-5 sm:border-r lg:border-r">
+      <p className="text-sm text-zinc-500">Target Date</p>
+      <h2 className="mt-2 text-xl font-black text-white">{targetDateText}</h2>
+    </div>
+
+    <div className="p-5">
+      <p className="text-sm text-zinc-500">Last Updated</p>
+      <h2 className="mt-2 text-xl font-black text-white">{updatedDateText}</h2>
+    </div>
+  </div>
+
+  {/* Tracker Specific Quick Stats */}
+  <div className="grid gap-4 border-t border-white/10 p-5 md:grid-cols-3">
+    {goal.trackerType === "normal" ? (
+      <>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p className="text-sm text-zinc-400">Current Streak</p>
+          <h3 className="mt-2 text-2xl font-black text-emerald-300">
+            {getNormalStreak()} days
+          </h3>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p className="text-sm text-zinc-400">Completed Days</p>
+          <h3 className="mt-2 text-2xl font-black text-white">
+            {normalCompletedCount}
+          </h3>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p className="text-sm text-zinc-400">This Month</p>
+          <h3 className="mt-2 text-2xl font-black text-cyan-300">
+            {normalMonthProgress}%
+          </h3>
+        </div>
+      </>
+    ) : (
+      <>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p className="text-sm text-zinc-400">Active Day</p>
+          <h3 className="mt-2 text-2xl font-black text-cyan-300">
+            Day {goal.activeDayNumber || 1}
+          </h3>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p className="text-sm text-zinc-400">Completed Days</p>
+          <h3 className="mt-2 text-2xl font-black text-white">
+            {completedComplexDays}/{totalComplexDays}
+          </h3>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p className="text-sm text-zinc-400">Remaining Days</p>
+          <h3 className="mt-2 text-2xl font-black text-blue-300">
+            {remainingComplexDays}
+          </h3>
+        </div>
+      </>
+    )}
+  </div>
+
+  <div className="border-t border-white/10 px-5 py-4 text-xs text-zinc-500">
+    Created on {createdDateText}
+  </div>
+</div>
 
           {goal.trackerType === "normal" && (
   <div className="mt-8 rounded-[2rem] border border-white/10 bg-white/5 p-4 shadow-2xl md:p-8">
@@ -1424,7 +1559,7 @@ const completedComplexDays = complexPlanDays.filter(
         </section>
       </main>
 
-      <GoalPageFooter />
+      <Footer />
     </>
   );
 }

@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect,useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { createClient } from "@/lib/supabase/client";
 import {
   getGoalByIdFromSupabase,
   updateGoalInSupabase,
@@ -20,6 +21,16 @@ const defaultMentorMessage: ChatMessage = {
   role: "mentor",
   text: "Hi, I am your GoalNow AI Mentor. Ask me about your goal, weak points, daily plan, revision, or next best action.",
 };
+function getDefaultMentorMessage(name?: string): ChatMessage {
+  const firstName = name?.trim().split(" ")[0];
+
+  return {
+    role: "mentor",
+    text: firstName
+      ? `Hi ${firstName}, I am your GoalNow AI Mentor. Ask me about your goal, weak points, daily plan, revision, or next best action.`
+      : "Hi, I am your GoalNow AI Mentor. Ask me about your goal, weak points, daily plan, revision, or next best action.",
+  };
+}
 
 export default function MentorPage() {
   const params = useParams();
@@ -36,7 +47,9 @@ export default function MentorPage() {
   const [mentorSource, setMentorSource] = useState<"gemini" | "fallback">(
     "fallback"
   );
+  const [userName, setUserName] = useState("");
 
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
   let isMounted = true;
 
@@ -46,12 +59,23 @@ export default function MentorPage() {
 
     try {
       const foundGoal = await getGoalByIdFromSupabase(goalId);
+        const supabase = createClient();
+        const { data: userData } = await supabase.auth.getUser();
+
+        const metadata = userData.user?.user_metadata || {};
+        const loadedUserName =
+          metadata.full_name ||
+          metadata.name ||
+          userData.user?.email?.split("@")[0] ||
+          "";
+
+        setUserName(loadedUserName);
 
       if (!isMounted) return;
 
       if (!foundGoal) {
         setGoal(null);
-        setMessages([defaultMentorMessage]);
+        setMessages([getDefaultMentorMessage(loadedUserName)]);
         return;
       }
 
@@ -60,7 +84,7 @@ export default function MentorPage() {
       if (foundGoal.mentorMessages && foundGoal.mentorMessages.length > 0) {
         setMessages(foundGoal.mentorMessages);
       } else {
-        setMessages([defaultMentorMessage]);
+        setMessages([getDefaultMentorMessage(loadedUserName)]);
       }
     } catch (error) {
       if (!isMounted) return;
@@ -84,6 +108,23 @@ export default function MentorPage() {
     isMounted = false;
   };
 }, [goalId]);
+useEffect(() => {
+  const chatContainer = chatContainerRef.current;
+
+  if (!chatContainer) return;
+
+  chatContainer.scrollTo({
+    top: chatContainer.scrollHeight,
+    behavior: "smooth",
+  });
+}, [messages, isMentorThinking]);
+function getDisplayName() {
+  const cleanName = userName.trim();
+
+  if (!cleanName) return "";
+
+  return cleanName.split(" ")[0];
+}
 
   function getGoalStats() {
     if (!goal) {
@@ -137,10 +178,12 @@ export default function MentorPage() {
   }
 
   function createMentorReply(userText: string) {
-    if (!goal) return "Please open a saved goal first.";
+  if (!goal) return "Please open a saved goal first.";
 
-    const stats = getGoalStats();
-    const lowerText = userText.toLowerCase();
+  const stats = getGoalStats();
+  const lowerText = userText.toLowerCase();
+  const displayName = getDisplayName();
+  const namePrefix = displayName ? `${displayName}, ` : "";
 
     if (goal.trackerType === "normal") {
       if (
@@ -167,7 +210,7 @@ export default function MentorPage() {
       lowerText.includes("today") ||
       lowerText.includes("do")
     ) {
-      return `For your complex tracker "${goal.name}", you are currently on ${stats.activeDayText}. Your next best action is: ${stats.nextAction}`;
+    return `${namePrefix}for your complex tracker "${goal.name}", you are currently on ${stats.activeDayText}. Your next best action is: ${stats.nextAction}`;
     }
 
     if (
@@ -175,7 +218,7 @@ export default function MentorPage() {
       lowerText.includes("report") ||
       lowerText.includes("how")
     ) {
-      return `Your current progress is ${stats.progress}%. You have completed ${stats.completed}/${stats.total} plan days. Do not rush. Complete the current active day first, then move forward.`;
+    return `${namePrefix}your current progress is ${stats.progress}%. You have completed ${stats.completed}/${stats.total} plan days. Do not rush. Complete the current active day first, then move forward.`;
     }
 
     if (
@@ -183,7 +226,7 @@ export default function MentorPage() {
       lowerText.includes("streak") ||
       lowerText.includes("break")
     ) {
-      return `If you miss a study day, your learning Day number should not move forward. Continue from ${stats.activeDayText}. This keeps your preparation honest and realistic.`;
+      return `${namePrefix}If you miss a study day, your learning Day number should not move forward. Continue from ${stats.activeDayText}. This keeps your preparation honest and realistic.`;
     }
 
     if (
@@ -194,7 +237,7 @@ export default function MentorPage() {
       return `Your weak area should be found from incomplete tasks. First complete: ${stats.nextAction}. After that, revise for 15 minutes and write one mistake note.`;
     }
 
-    return `For "${goal.name}", focus on ${stats.activeDayText}. Your next best action is: ${stats.nextAction}`;
+  return `${namePrefix}for "${goal.name}", focus on ${stats.activeDayText}. Your next best action is: ${stats.nextAction}`;
   }
   async function createGeminiMentorReply(userText: string) {
   if (!goal) {
@@ -210,6 +253,7 @@ export default function MentorPage() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        userName: getDisplayName(),
         goalName: goal.name,
         category: goal.category,
         currentLevel: goal.currentLevel,
@@ -297,14 +341,14 @@ export default function MentorPage() {
 
     const updatedGoal: Goal = {
       ...goal,
-      mentorMessages: [defaultMentorMessage],
+      mentorMessages: [getDefaultMentorMessage(userName)],
       updatedAt: new Date().toISOString(),
     };
 
     try {
   const savedGoal = await updateGoalInSupabase(updatedGoal);
   setGoal(savedGoal);
-  setMessages([defaultMentorMessage]);
+  setMessages([getDefaultMentorMessage(userName)]);
   setMentorError("");
 } catch (error) {
   setMentorError(
@@ -391,165 +435,274 @@ if (isLoadingGoal) {
 
   const stats = getGoalStats();
 
-  return (
-    <>
-      <Navbar />
+ return (
+  <>
+    <Navbar />
 
-      <main className="min-h-screen bg-black px-6 py-10 text-white">
-        <section className="mx-auto max-w-5xl">
-          <Link href={`/goals/${goal.id}`} className="text-sm text-blue-300">
-            ← Back to Goal
-          </Link>
-          {mentorError && (
-            <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
-              {mentorError}
-            </div>
-          )}
+    <main className="min-h-screen bg-slate-950 px-4 py-6 text-white md:px-6 md:py-10">
+      <section className="mx-auto max-w-7xl">
+        <Link
+          href={`/goals/${goal.id}`}
+          className="inline-flex items-center rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-slate-300 transition hover:bg-white/10 hover:text-white"
+        >
+          ← Back to Goal
+        </Link>
 
-          <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 md:p-8">
-            <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+        {mentorError && (
+          <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
+            {mentorError}
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="mt-6 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/40">
+          <div className="relative p-6 md:p-8">
+            <div className="absolute right-0 top-0 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
+            <div className="absolute bottom-0 left-0 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
+
+            <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="text-sm font-semibold text-blue-300">
-                  GoalNow AI Mentor
-                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-black uppercase tracking-wide text-cyan-300">
+                    GoalNow AI Mentor
+                  </span>
 
-                <h1 className="mt-2 text-4xl font-black">{goal.name}</h1>
+                  <span
+                    className={
+                      mentorSource === "gemini"
+                        ? "rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-black uppercase tracking-wide text-emerald-300"
+                        : "rounded-full border border-yellow-400/30 bg-yellow-400/10 px-3 py-1 text-xs font-black uppercase tracking-wide text-yellow-300"
+                    }
+                  >
+                    {mentorSource === "gemini"
+                      ? "Gemini Active"
+                      : "Fallback Ready"}
+                  </span>
 
-                <p className="mt-3 max-w-2xl text-zinc-400">
-                  Ask your mentor about next actions, weak points, revision,
-                  missed days, motivation, and progress.
+                  {isMentorThinking && (
+                    <span className="rounded-full border border-blue-400/30 bg-blue-400/10 px-3 py-1 text-xs font-black uppercase tracking-wide text-blue-300">
+                      Thinking...
+                    </span>
+                  )}
+                </div>
+
+                <h1 className="mt-5 max-w-4xl text-4xl font-black tracking-tight text-white md:text-5xl">
+                  AI Mentor for {goal.name}
+                </h1>
+
+                <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-400 md:text-base">
+                  Ask about today&apos;s next action, weak points, missed days,
+                  revision strategy, weekly improvement, and how to stay
+                  consistent with your active goal plan.
                 </p>
               </div>
 
               <button
+                type="button"
                 onClick={clearChat}
-                className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm font-semibold text-red-300 transition hover:bg-red-400/20"
+                className="w-fit rounded-2xl border border-red-400/30 bg-red-400/10 px-5 py-3 text-sm font-black text-red-200 transition hover:bg-red-400/20"
               >
                 Clear Chat
               </button>
             </div>
+          </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
-                <p className="text-sm text-zinc-400">Progress</p>
-                <h2 className="mt-2 text-2xl font-black">{stats.progress}%</h2>
+          <div className="grid border-t border-white/10 bg-black/20 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="border-white/10 p-5 sm:border-r">
+              <p className="text-sm text-slate-500">Progress</p>
+              <h2 className="mt-2 text-2xl font-black text-cyan-300">
+                {stats.progress}%
+              </h2>
+            </div>
+
+            <div className="border-white/10 p-5 lg:border-r">
+              <p className="text-sm text-slate-500">Completed Days</p>
+              <h2 className="mt-2 text-2xl font-black text-white">
+                {stats.completed}/{stats.total}
+              </h2>
+            </div>
+
+            <div className="border-white/10 p-5 sm:border-r lg:border-r">
+              <p className="text-sm text-slate-500">Active Plan</p>
+              <h2 className="mt-2 line-clamp-2 text-lg font-black text-white">
+                {stats.activeDayText}
+              </h2>
+            </div>
+
+            <div className="p-5">
+              <p className="text-sm text-slate-500">Next Action</p>
+              <h2 className="mt-2 line-clamp-2 text-lg font-black text-blue-300">
+                {stats.nextAction}
+              </h2>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Mentor Layout */}
+        <div className="mt-6 grid gap-6 lg:grid-cols-[0.75fr_1.25fr]">
+          {/* Sidebar */}
+          <aside className="space-y-6">
+            <section className="rounded-[2rem] border border-white/10 bg-white/5 p-5 shadow-xl md:p-6">
+              <h2 className="text-2xl font-black">Mentor Shortcuts</h2>
+
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                Tap a question to quickly ask your AI mentor.
+              </p>
+
+              <div className="mt-5 grid gap-3">
+                {[
+                  "What should I do today?",
+                  "How is my progress?",
+                  "What if I missed a day?",
+                  "What is my weak area?",
+                  "Make my next 3 steps clear.",
+                  "How can I improve this week?",
+                ].map((question) => (
+                  <button
+                    key={question}
+                    type="button"
+                    onClick={() => setInput(question)}
+                    className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-left text-sm font-semibold text-slate-300 transition hover:border-cyan-400/40 hover:bg-white/10 hover:text-white"
+                  >
+                    {question}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-[2rem] border border-white/10 bg-white/5 p-5 shadow-xl md:p-6">
+              <h2 className="text-2xl font-black">Goal Context</h2>
+
+              <div className="mt-5 space-y-3">
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                  <p className="text-sm text-slate-400">Category</p>
+                  <p className="mt-1 font-bold text-white">{goal.category}</p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                  <p className="text-sm text-slate-400">Daily Time</p>
+                  <p className="mt-1 font-bold text-white">
+                    {goal.dailyTime || "Not set"}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                  <p className="text-sm text-slate-400">Target Result</p>
+                  <p className="mt-1 line-clamp-4 text-sm leading-6 text-slate-300">
+                    {goal.targetResult || "Not added"}
+                  </p>
+                </div>
+              </div>
+            </section>
+          </aside>
+
+          {/* Chat Panel */}
+          <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 shadow-2xl">
+            <div className="flex items-center justify-between gap-4 border-b border-white/10 bg-black/20 px-5 py-4">
+              <div>
+                <h2 className="text-xl font-black">Mentor Chat</h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Saved to this goal&apos;s mentor history
+                </p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
-                <p className="text-sm text-zinc-400">Completed Days</p>
-                <h2 className="mt-2 text-2xl font-black">
-                  {stats.completed}/{stats.total}
-                </h2>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-black/40 p-5">
-                <p className="text-sm text-zinc-400">Active Plan</p>
-                <h2 className="mt-2 text-lg font-bold">{stats.activeDayText}</h2>
-              </div>
-              <div className="mt-5 flex flex-wrap gap-3">
-                <span
-                  className={
-                    mentorSource === "gemini"
-                      ? "rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-sm font-semibold text-emerald-300"
-                      : "rounded-full border border-yellow-400/30 bg-yellow-400/10 px-3 py-1 text-sm font-semibold text-yellow-300"
-                  }
-                >
-                  {mentorSource === "gemini"
-                    ? "Gemini mentor active"
-                    : "Fallback mentor ready"}
-                </span>
-
-                {isMentorThinking && (
-                  <span className="rounded-full border border-blue-400/30 bg-blue-400/10 px-3 py-1 text-sm font-semibold text-blue-300">
-                    Mentor is thinking...
-                  </span>
-                )}
+              <div className="hidden rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-bold text-slate-400 sm:block">
+                {messages.length} messages
               </div>
             </div>
 
-            <div className="mt-8 h-[480px] overflow-y-auto rounded-2xl border border-white/10 bg-black/40 p-5">
-              <div className="space-y-4">
+            <div
+                  ref={chatContainerRef}
+                  className="h-[560px] overflow-y-auto bg-slate-950/70 p-4 md:p-6"
+                >
+               <div className="space-y-5">
                 {messages.map((message, index) => (
                   <div
                     key={`${message.role}-${index}`}
                     className={
                       message.role === "user"
-                        ? "ml-auto max-w-[85%] rounded-2xl bg-white px-4 py-3 text-black"
-                        : "mr-auto max-w-[85%] rounded-2xl border border-blue-400/30 bg-blue-400/10 px-4 py-3 text-blue-100"
+                        ? "ml-auto max-w-[90%] rounded-[1.5rem] bg-cyan-400 px-5 py-4 text-slate-950 shadow-lg shadow-cyan-500/10 md:max-w-[75%]"
+                        : "mr-auto max-w-[90%] rounded-[1.5rem] border border-white/10 bg-white/5 px-5 py-4 text-slate-100 shadow-lg shadow-black/20 md:max-w-[75%]"
                     }
                   >
-                    <p className="text-sm font-semibold">
-                      {message.role === "user" ? "You" : "AI Mentor"}
-                    </p>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span
+                        className={
+                          message.role === "user"
+                            ? "flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-xs font-black text-white"
+                            : "flex h-7 w-7 items-center justify-center rounded-full bg-blue-400 text-xs font-black text-slate-950"
+                        }
+                      >
+                        {message.role === "user" ? "Y" : "AI"}
+                      </span>
 
-                    <p className="mt-1 whitespace-pre-line">{message.text}</p>
+                      <p className="text-sm font-black">
+                        {message.role === "user" ? "You" : "AI Mentor"}
+                      </p>
+                    </div>
+
+                    <p className="whitespace-pre-line text-sm leading-7">
+                      {message.text}
+                    </p>
                   </div>
                 ))}
+
                 {isMentorThinking && (
-                  <div className="mr-auto max-w-[85%] rounded-2xl border border-blue-400/30 bg-blue-400/10 px-4 py-3 text-blue-100">
-                    <p className="text-sm font-semibold">AI Mentor</p>
-                    <p className="mt-1">Thinking...</p>
+                  <div className="mr-auto max-w-[90%] rounded-[1.5rem] border border-blue-400/30 bg-blue-400/10 px-5 py-4 text-blue-100 md:max-w-[75%]">
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-400 text-xs font-black text-slate-950">
+                        AI
+                      </span>
+                      <p className="text-sm font-black">AI Mentor</p>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-sm text-blue-100">
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-blue-300" />
+                      <span>Thinking and checking your goal context...</span>
+                    </div>
                   </div>
                 )}
+
+                
               </div>
             </div>
 
-            <div className="mt-5 flex flex-col gap-3 md:flex-row">
-              <input
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    void sendMessage();
-                  }
-                }}
-                placeholder="Ask your AI mentor..."
-                className="flex-1 rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none placeholder:text-zinc-500 focus:border-blue-400"
-              />
+            <div className="border-t border-white/10 bg-black/30 p-4 md:p-5">
+              <div className="flex flex-col gap-3 md:flex-row">
+                <input
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      void sendMessage();
+                    }
+                  }}
+                  placeholder="Ask your AI mentor about your next step..."
+                  className="min-h-12 flex-1 rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-cyan-400"
+                />
 
-              <button
-                onClick={() => void sendMessage()}
-                disabled={isMentorThinking}
-                className="rounded-xl bg-white px-6 py-3 font-semibold text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isMentorThinking ? "Thinking..." : "Send"}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => void sendMessage()}
+                  disabled={isMentorThinking || !input.trim()}
+                  className="rounded-2xl bg-cyan-400 px-6 py-3 font-black text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isMentorThinking ? "Thinking..." : "Send"}
+                </button>
+              </div>
+
+              <p className="mt-3 text-xs leading-5 text-slate-500">
+                Mentor replies are based on your saved goal, active day,
+                progress, and task status.
+              </p>
             </div>
+          </section>
+        </div>
+      </section>
+    </main>
 
-            <div className="mt-5 grid gap-3 md:grid-cols-4">
-              <button
-                onClick={() => setInput("What should I do today?")}
-                className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-left text-sm text-zinc-300 hover:bg-white/20"
-              >
-                What should I do today?
-              </button>
-
-              <button
-                onClick={() => setInput("How is my progress?")}
-                className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-left text-sm text-zinc-300 hover:bg-white/20"
-              >
-                How is my progress?
-              </button>
-
-              <button
-                onClick={() => setInput("What if I missed a day?")}
-                className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-left text-sm text-zinc-300 hover:bg-white/20"
-              >
-                What if I missed a day?
-              </button>
-
-              <button
-                onClick={() => setInput("What is my weak area?")}
-                className="rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-left text-sm text-zinc-300 hover:bg-white/20"
-              >
-                What is my weak area?
-              </button>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <Footer />
-    </>
-  );
+    <Footer />
+  </>
+);  
 }
