@@ -138,6 +138,9 @@ export default function ProfilePage() {
   }
 
   async function handleLogout() {
+    const confirmLogout = window.confirm("Are you sure you want to logout?");
+
+if (!confirmLogout) return;
     setLoggingOut(true);
     setErrorMessage("");
 

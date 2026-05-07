@@ -54,6 +54,9 @@ export default function Navbar() {
   }, []);
 
   async function handleLogout() {
+    const confirmLogout = window.confirm("Are you sure you want to logout?");
+
+if (!confirmLogout) return;
     setIsLoggingOut(true);
 
     const supabase = createClient();

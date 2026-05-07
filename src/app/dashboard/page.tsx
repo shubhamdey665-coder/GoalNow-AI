@@ -9,6 +9,7 @@ import {
   getGoalsFromSupabase,
 } from "@/lib/goals/supabaseGoals";
 import type { Goal } from "@/types/goal";
+import DashboardWelcome from "@/components/DashboardWelcome";
 
 export default function DashboardPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -240,8 +241,9 @@ return (
 
     <main className="min-h-screen bg-slate-950 px-4 py-6 text-white md:px-6 md:py-10">
       <section className="mx-auto max-w-7xl">
+        <DashboardWelcome />
         {/* Header */}
-        <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl md:p-8">
+        <div className="relative mt-6 overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl md:p-8">
           <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" />
           <div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-blue-500/10 blur-3xl" />
 

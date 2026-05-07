@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import Footer from "@/components/Footer";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -119,7 +120,16 @@ export default function SignupPage() {
   ];
 
   return (
+    <>
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-white">
+      <div className="mx-auto mb-6 max-w-6xl">
+  <Link
+    href="/"
+    className="inline-flex items-center rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-slate-300 transition hover:bg-white/10 hover:text-white"
+  >
+    ← Back to Home
+  </Link>
+</div>
       <section className="mx-auto grid min-h-[calc(100vh-64px)] max-w-6xl items-center gap-8 lg:grid-cols-[1fr_1fr]">
         {/* Left Brand Side */}
         <div className="hidden lg:block">
@@ -350,5 +360,7 @@ export default function SignupPage() {
         </section>
       </section>
     </main>
+    <Footer />
+  </>
   );
 }
