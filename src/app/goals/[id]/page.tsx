@@ -13,6 +13,7 @@ import {
 } from "@/lib/goals/supabaseGoals";
 import { downloadComplexPlanPdf } from "@/lib/exportPlanPdf";
 import type { Goal } from "@/types/goal";
+import { calculateSmartDayProgress } from "@/lib/smartProgress";
 
 function formatDateToYMD(date: Date) {
   const year = date.getFullYear();
@@ -332,19 +333,30 @@ function goToCurrentMonth() {
   setNormalCalendarDate(new Date());
 }
 
-  function toggleComplexTask(dayNumber: number, taskId: string) {
+ function toggleComplexTask(dayNumber: number, taskId: string) {
   if (!goal || !goal.complexPlanDays) return;
 
   const today = getTodayString();
+  const now = new Date().toISOString();
 
   const updatedPlanDays = goal.complexPlanDays.map((day) => {
     if (day.dayNumber !== dayNumber) {
       return day;
     }
 
-    const updatedTasks = day.tasks.map((task) =>
-      task.id === taskId ? { ...task, completed: !task.completed } : task
-    );
+    const updatedTasks = day.tasks.map((task) => {
+      if (task.id !== taskId) {
+        return task;
+      }
+
+      const nextCompleted = !task.completed;
+
+      return {
+        ...task,
+        completed: nextCompleted,
+        completedAt: nextCompleted ? now : undefined,
+      };
+    });
 
     const isDayComplete = updatedTasks.every((task) => task.completed);
 
@@ -353,7 +365,7 @@ function goToCurrentMonth() {
       assignedDate: day.assignedDate || today,
       tasks: updatedTasks,
       completed: isDayComplete,
-      completedAt: isDayComplete ? new Date().toISOString() : undefined,
+      completedAt: isDayComplete ? day.completedAt || now : undefined,
     };
   });
 
@@ -397,7 +409,7 @@ function goToCurrentMonth() {
     complexPlanDays: finalPlanDays,
     activeDayNumber: nextActiveDayNumber,
     status: allDaysCompleted ? "completed" : "active",
-    updatedAt: new Date().toISOString(),
+    updatedAt: now,
   };
 
   saveUpdatedGoal(updatedGoal);
@@ -641,6 +653,10 @@ const normalHasStreakBreak =
   lastNormalCompletedDate !== todayString;
 
 const complexPlanDays = goal.complexPlanDays || [];
+const todaySmartProgress =
+  goal && goal.trackerType === "complex"
+    ? calculateSmartDayProgress(goal, new Date())
+    : null;
 
 const activeDay =
   goal.trackerType === "complex"
@@ -1285,6 +1301,65 @@ const priorityStyle =
                   completed. If you miss today, tomorrow will still show the same
                   active day.
                 </p>
+                {todaySmartProgress && (
+  <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-6">
+    <p className="text-sm font-semibold text-emerald-300">
+      Smart Progress Detection
+    </p>
+
+    <h2 className="mt-2 text-3xl font-black text-white">
+      Today: {todaySmartProgress.percentage}%
+    </h2>
+
+    <p className="mt-2 text-sm text-zinc-300">
+      Scheduled Day: Day {todaySmartProgress.scheduledDayNumber}
+    </p>
+
+    <div className="mt-5 grid gap-3 md:grid-cols-4">
+      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+        <p className="text-xs text-zinc-400">Total done today</p>
+        <h3 className="mt-1 text-2xl font-black">
+          {todaySmartProgress.completedTaskUnits}
+        </h3>
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+        <p className="text-xs text-zinc-400">Today's own work</p>
+        <h3 className="mt-1 text-2xl font-black text-emerald-300">
+          {todaySmartProgress.ownTaskCount}
+        </h3>
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+        <p className="text-xs text-zinc-400">Previous work</p>
+        <h3 className="mt-1 text-2xl font-black text-yellow-300">
+          {todaySmartProgress.catchUpTaskCount}
+        </h3>
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+        <p className="text-xs text-zinc-400">Future work</p>
+        <h3 className="mt-1 text-2xl font-black text-blue-300">
+          {todaySmartProgress.futureTaskCount}
+        </h3>
+      </div>
+    </div>
+
+    {todaySmartProgress.catchUpDayNumbers.length > 0 && (
+      <p className="mt-4 text-sm text-yellow-200">
+        Catch-up completed today: Day{" "}
+        {todaySmartProgress.catchUpDayNumbers.join(", Day ")}
+      </p>
+    )}
+
+    {todaySmartProgress.futureDayNumbers.length > 0 && (
+      <p className="mt-2 text-sm text-blue-200">
+        Future work completed early: Day{" "}
+        {todaySmartProgress.futureDayNumbers.join(", Day ")}
+      </p>
+    )}
+  </div>
+)}
 
                 {activeDayNotCompleted && (
                   <div className="mt-5 rounded-2xl border border-yellow-400/30 bg-yellow-400/10 p-4 text-yellow-200">

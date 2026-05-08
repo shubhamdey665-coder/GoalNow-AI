@@ -18,10 +18,11 @@ type AiPlanDay = {
     completed: false,
     missedDates: [],
     tasks: day.tasks.map((task) => ({
-      id: crypto.randomUUID(),
-      title: task,
-      completed: false,
-    })),
+  id: crypto.randomUUID(),
+  title: task,
+  completed: false,
+  completedAt: undefined,
+})),
   }));
 
   if (!duration) {
@@ -40,6 +41,7 @@ function createTask(title: string) {
     id: crypto.randomUUID(),
     title,
     completed: false,
+    completedAt: undefined,
   };
 }
 

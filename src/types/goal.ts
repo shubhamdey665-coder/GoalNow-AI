@@ -13,6 +13,7 @@ export type ComplexTask = {
   id: string;
   title: string;
   completed: boolean;
+  completedAt?: string;
 };
 
 export type ComplexPlanDay = {
