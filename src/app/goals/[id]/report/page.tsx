@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect,  useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -24,6 +24,27 @@ type AiReport = {
   weakAreas: string[];
   nextActions: string[];
   weeklyRecommendation: string;
+};
+
+type RealDateProgressPoint = {
+  date: string;
+  percentage: number;
+  completedDayUnits: number;
+  completedTaskCount: number;
+  ownDayNumbers: number[];
+  isToday: boolean;
+  isPast: boolean;
+};
+
+type TargetPrediction = {
+  targetDate: string;
+  remainingDays: number;
+  remainingPlanDays: number;
+  requiredDaysPerDay: number;
+  currentSpeed: number;
+  isOnTrack: boolean;
+  message: string;
+  suggestion: string;
 };
 
 function getFallbackAiReport(goal: Goal, reportData: ReportData): AiReport {
@@ -172,26 +193,6 @@ function getDateLabel(dateString?: string) {
     year: "numeric",
   });
 }
-type RealDateProgressPoint = {
-  date: string;
-  percentage: number;
-  completedDayUnits: number;
-  completedTaskCount: number;
-  ownDayNumbers: number[];
-  isToday: boolean;
-  isPast: boolean;
-};
-
-type TargetPrediction = {
-  targetDate: string;
-  remainingDays: number;
-  remainingPlanDays: number;
-  requiredDaysPerDay: number;
-  currentSpeed: number;
-  isOnTrack: boolean;
-  message: string;
-  suggestion: string;
-};
 
 function getDateKeyFromDate(date: Date) {
   const year = date.getFullYear();
@@ -258,6 +259,33 @@ function getFullDateForGraph(dateString: string) {
     year: "numeric",
   });
 }
+function getGraphTicks(topPercentage: number) {
+  const safeTop = Math.max(100, topPercentage);
+  const ticks: number[] = [];
+
+  for (let value = safeTop; value >= 0; value -= 100) {
+    ticks.push(value);
+  }
+
+  if (!ticks.includes(0)) {
+    ticks.push(0);
+  }
+
+  return ticks;
+}
+function getCompletedDayLabel(dayNumbers: number[]) {
+  if (dayNumbers.length === 0) return "";
+
+  if (dayNumbers.length === 1) {
+    return `Day ${dayNumbers[0]}`;
+  }
+
+  if (dayNumbers.length <= 3) {
+    return `Day ${dayNumbers.join(", ")}`;
+  }
+
+  return `Day ${dayNumbers[0]}-${dayNumbers[dayNumbers.length - 1]}`;
+}
 
 function getGoalTargetDate(goal: Goal) {
   const goalWithPossibleTargetDate = goal as Goal & {
@@ -284,7 +312,7 @@ function getGoalTargetDate(goal: Goal) {
   return addDaysToDate(createdAt, totalNormalDays - 1);
 }
 
-function getRealDateProgressPoints(goal: Goal) {
+function getRealDateProgressPoints(goal: Goal): RealDateProgressPoint[] {
   const createdAt = getStartOfDay(goal.createdAt);
   const today = getStartOfDay(new Date());
   const targetDate = getGoalTargetDate(goal);
@@ -307,17 +335,12 @@ function getRealDateProgressPoints(goal: Goal) {
 
   if (goal.trackerType === "normal") {
     for (const checkIn of goal.normalCheckIns || []) {
-      const possibleCompletedAt = (checkIn as typeof checkIn & {
+      const checkInWithDates = checkIn as typeof checkIn & {
         completedAt?: string;
         date?: string;
-      }).completedAt;
+      };
 
-      const possibleDate = (checkIn as typeof checkIn & {
-        completedAt?: string;
-        date?: string;
-      }).date;
-
-      const dateValue = possibleCompletedAt || possibleDate;
+      const dateValue = checkInWithDates.completedAt || checkInWithDates.date;
 
       if (!dateValue) continue;
 
@@ -495,7 +518,6 @@ function getTargetPrediction(
   };
 }
 
-
 export default function ReportPage() {
   const params = useParams();
   const goalId = params.id as string;
@@ -509,12 +531,11 @@ export default function ReportPage() {
     "fallback"
   );
   const [durationGraphMode, setDurationGraphMode] = useState<"month" | "full">(
-  "month"
-);
-
-const [selectedGraphMonth, setSelectedGraphMonth] = useState<Date>(
-  new Date()
-);
+    "month"
+  );
+  const [selectedGraphMonth, setSelectedGraphMonth] = useState<Date>(
+    new Date()
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -658,15 +679,17 @@ const [selectedGraphMonth, setSelectedGraphMonth] = useState<Date>(
       <>
         <Navbar />
 
-        <main className="min-h-screen bg-[radial-gradient(circle_at_top,#172554_0%,#020617_35%,#000000_100%)] px-4 py-8 text-white md:px-6 md:py-10">
-          <section className="mx-auto max-w-4xl">
+        <main className="goalnow-page min-h-screen bg-[radial-gradient(circle_at_top,#172554_0%,#020617_35%,#000000_100%)] py-5 text-white md:py-10">
+          <section className="goalnow-container">
             <Link href="/dashboard" className="text-sm text-blue-300">
               ← Back to Dashboard
             </Link>
 
-            <div className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-10 text-center shadow-2xl shadow-blue-950/30 backdrop-blur">
+            <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center shadow-2xl shadow-blue-950/30 backdrop-blur md:mt-8 md:rounded-[2rem] md:p-10">
               <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-              <h1 className="text-3xl font-black">Loading report...</h1>
+              <h1 className="text-2xl font-black md:text-3xl">
+                Loading report...
+              </h1>
               <p className="mt-3 text-zinc-400">
                 Fetching progress report from your Supabase account.
               </p>
@@ -684,14 +707,16 @@ const [selectedGraphMonth, setSelectedGraphMonth] = useState<Date>(
       <>
         <Navbar />
 
-        <main className="min-h-screen bg-[radial-gradient(circle_at_top,#172554_0%,#020617_35%,#000000_100%)] px-4 py-8 text-white md:px-6 md:py-10">
-          <section className="mx-auto max-w-4xl">
+        <main className="goalnow-page min-h-screen bg-[radial-gradient(circle_at_top,#172554_0%,#020617_35%,#000000_100%)] py-5 text-white md:py-10">
+          <section className="goalnow-container">
             <Link href="/dashboard" className="text-sm text-blue-300">
               ← Back to Dashboard
             </Link>
 
-            <div className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-10 text-center shadow-2xl shadow-blue-950/30 backdrop-blur">
-              <h1 className="text-3xl font-black">Goal not found</h1>
+            <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-8 text-center shadow-2xl shadow-blue-950/30 backdrop-blur md:mt-8 md:rounded-[2rem] md:p-10">
+              <h1 className="text-2xl font-black md:text-3xl">
+                Goal not found
+              </h1>
               <p className="mt-3 text-zinc-400">
                 {reportError || "This report page needs a saved goal first."}
               </p>
@@ -721,80 +746,89 @@ const [selectedGraphMonth, setSelectedGraphMonth] = useState<Date>(
       ? activeDay?.tasks.filter((task) => !task.completed) || []
       : [];
 
+  const realDateProgressPoints = getRealDateProgressPoints(goal);
 
-const realDateProgressPoints = getRealDateProgressPoints(goal);
+  const visibleDateProgressPoints = getVisibleDateProgressPoints(
+    realDateProgressPoints,
+    durationGraphMode,
+    selectedGraphMonth
+  );
 
-const visibleDateProgressPoints = getVisibleDateProgressPoints(
-  realDateProgressPoints,
-  durationGraphMode,
-  selectedGraphMonth
+  const targetPrediction = getTargetPrediction(goal, realDateProgressPoints);
+
+  const visibleTotalPercentage = visibleDateProgressPoints.reduce(
+    (total, point) => total + point.percentage,
+    0
+  );
+
+  const visibleAveragePercentage =
+    visibleDateProgressPoints.length === 0
+      ? 0
+      : Math.round(visibleTotalPercentage / visibleDateProgressPoints.length);
+
+  const visibleBestDay = [...visibleDateProgressPoints].sort(
+    (a, b) => b.percentage - a.percentage
+  )[0];
+
+  const visibleSkippedDays = visibleDateProgressPoints.filter(
+    (point) => point.isPast && point.percentage === 0
+  ).length;
+
+  const visibleCatchUpDays = visibleDateProgressPoints.filter(
+    (point) => point.percentage > 100
+  ).length;
+
+  const visibleMaxPercentage = Math.max(
+    100,
+    ...visibleDateProgressPoints.map((point) => point.percentage)
+  );
+
+  const visibleGraphTopPercentage =
+    Math.ceil(visibleMaxPercentage / 100) * 100;
+  const graphTicks = getGraphTicks(visibleGraphTopPercentage);
+
+  const monthGraphWidth = Math.max(
+  360,
+  visibleDateProgressPoints.length * 58
 );
 
-const targetPrediction = getTargetPrediction(goal, realDateProgressPoints);
-
-const visibleTotalPercentage = visibleDateProgressPoints.reduce(
-  (total, point) => total + point.percentage,
-  0
-);
-
-const visibleAveragePercentage =
-  visibleDateProgressPoints.length === 0
-    ? 0
-    : Math.round(visibleTotalPercentage / visibleDateProgressPoints.length);
-
-const visibleBestDay = [...visibleDateProgressPoints].sort(
-  (a, b) => b.percentage - a.percentage
-)[0];
-
-const visibleSkippedDays = visibleDateProgressPoints.filter(
-  (point) => point.isPast && point.percentage === 0
-).length;
-
-const visibleCatchUpDays = visibleDateProgressPoints.filter(
-  (point) => point.percentage > 100
-).length;
-
-const visibleMaxPercentage = Math.max(
-  100,
-  ...visibleDateProgressPoints.map((point) => point.percentage)
-);
-
-const visibleGraphTopPercentage = Math.ceil(visibleMaxPercentage / 100) * 100;
-
-const graphWidth = Math.max(
+const fullDurationGraphWidth = Math.max(
   900,
-  visibleDateProgressPoints.length * (durationGraphMode === "full" ? 28 : 42)
+  visibleDateProgressPoints.length * 28
 );
- 
+
+const graphWidth =
+  durationGraphMode === "month" ? monthGraphWidth : fullDurationGraphWidth;
+
   return (
     <>
       <Navbar />
 
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top,#172554_0%,#020617_35%,#000000_100%)] px-4 py-8 text-white md:px-6 md:py-10">
-        <section className="mx-auto max-w-7xl">
+      <main className="goalnow-page min-h-screen bg-[radial-gradient(circle_at_top,#172554_0%,#020617_35%,#000000_100%)] py-5 text-white md:py-10">
+        <section className="goalnow-container">
           <Link href={`/goals/${goal.id}`} className="text-sm text-blue-300">
             ← Back to Goal
           </Link>
 
           {reportError && (
-            <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
+            <div className="mt-5 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
               {reportError}
             </div>
           )}
 
-          <div className="mt-8 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-2xl shadow-blue-950/30 backdrop-blur">
-            <div className="border-b border-white/10 bg-white/[0.03] p-6 md:p-8">
+          <div className="mt-5 overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-blue-950/30 backdrop-blur md:mt-8 md:rounded-[2rem]">
+            <div className="border-b border-white/10 bg-white/[0.03] p-4 md:p-8">
               <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
                 <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-300">
+                  <p className="text-sm font-semibold uppercase tracking-[0.25em] text-blue-300 md:tracking-[0.3em]">
                     GoalNow AI Progress Report
                   </p>
 
-                  <h1 className="mt-3 text-4xl font-black tracking-tight md:text-5xl">
+                  <h1 className="mt-3 text-3xl font-black tracking-tight md:text-5xl">
                     {goal.name}
                   </h1>
 
-                  <p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-400 md:text-base">
+                  <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400 md:mt-4 md:text-base md:leading-7">
                     A professional report for your progress, completion quality,
                     weak areas, active plan status, and next best action.
                   </p>
@@ -839,7 +873,9 @@ const graphWidth = Math.max(
                     disabled={isGeneratingReport}
                     className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {isGeneratingReport ? "Generating..." : "Generate AI Report"}
+                    {isGeneratingReport
+                      ? "Generating..."
+                      : "Generate AI Report"}
                   </button>
 
                   <button
@@ -859,373 +895,438 @@ const graphWidth = Math.max(
                 </div>
               </div>
             </div>
- 
-<div className="border-b border-white/10 p-6 md:p-8">
-  <div className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
-    <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
-          Total Duration Progress
-        </p>
 
-        <h2 className="mt-3 text-3xl font-black">
-          Date vs Completion Percentage
-        </h2>
+            <div className="border-b border-white/10 p-3 md:p-8">
+              <div className="rounded-3xl border border-white/10 bg-black/35 p-4 md:rounded-[2rem] md:p-6">
+                <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
+                      Total Duration Progress
+                    </p>
 
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400">
-          This graph starts from your goal creation date, but progress is counted
-          only on the exact date when you completed tasks. If you complete Day 2
-          and Day 3 together on one date, that date shows 200%.
-        </p>
-      </div>
+                    <h2 className="mt-3 text-2xl font-black md:text-3xl">
+                      Date vs Completion Percentage
+                    </h2>
 
-      <div className="flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-2">
-        <button
-          type="button"
-          onClick={() => setDurationGraphMode("month")}
-          className={
-            durationGraphMode === "month"
-              ? "rounded-xl bg-white px-4 py-2 text-xs font-black text-black"
-              : "rounded-xl px-4 py-2 text-xs font-black text-zinc-300 hover:bg-white/10"
-          }
-        >
-          Month View
-        </button>
+                    <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400">
+                      This graph starts from your goal creation date, but
+                      progress is counted only on the exact date when you
+                      completed tasks. If you complete Day 2 and Day 3 together
+                      on one date, that date shows 200%.
+                    </p>
+                  </div>
 
-        <button
-          type="button"
-          onClick={() => setDurationGraphMode("full")}
-          className={
-            durationGraphMode === "full"
-              ? "rounded-xl bg-white px-4 py-2 text-xs font-black text-black"
-              : "rounded-xl px-4 py-2 text-xs font-black text-zinc-300 hover:bg-white/10"
-          }
-        >
-          Full Duration
-        </button>
-      </div>
-    </div>
-
-    <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-      <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
-        <p className="text-xs text-emerald-100/70">Average</p>
-        <h3 className="mt-1 text-2xl font-black text-emerald-200">
-          {visibleAveragePercentage}%
-        </h3>
-      </div>
-
-      <div className="rounded-2xl border border-blue-400/20 bg-blue-400/10 p-4">
-        <p className="text-xs text-blue-100/70">Best Date</p>
-        <h3 className="mt-1 text-2xl font-black text-blue-200">
-          {visibleBestDay ? `${visibleBestDay.percentage}%` : "0%"}
-        </h3>
-      </div>
-
-      <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-4">
-        <p className="text-xs text-red-100/70">No-work Days</p>
-        <h3 className="mt-1 text-2xl font-black text-red-200">
-          {visibleSkippedDays}
-        </h3>
-      </div>
-
-      <div className="rounded-2xl border border-purple-400/20 bg-purple-400/10 p-4">
-        <p className="text-xs text-purple-100/70">Over 100% Days</p>
-        <h3 className="mt-1 text-2xl font-black text-purple-200">
-          {visibleCatchUpDays}
-        </h3>
-      </div>
-
-      <div
-        className={
-          targetPrediction.isOnTrack
-            ? "rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4"
-            : "rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-4"
-        }
-      >
-        <p
-          className={
-            targetPrediction.isOnTrack
-              ? "text-xs text-emerald-100/70"
-              : "text-xs text-yellow-100/70"
-          }
-        >
-          Target Status
-        </p>
-        <h3
-          className={
-            targetPrediction.isOnTrack
-              ? "mt-1 text-2xl font-black text-emerald-200"
-              : "mt-1 text-2xl font-black text-yellow-200"
-          }
-        >
-          {targetPrediction.isOnTrack ? "On Track" : "Risk"}
-        </h3>
-      </div>
-    </div>
-
-    {durationGraphMode === "month" && (
-      <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <button
-          type="button"
-          onClick={() =>
-            setSelectedGraphMonth((current) => {
-              const date = new Date(current);
-              date.setMonth(date.getMonth() - 1);
-              return date;
-            })
-          }
-          className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20"
-        >
-          Previous Month
-        </button>
-
-        <p className="text-center text-lg font-black text-white">
-          {getMonthLabel(selectedGraphMonth)}
-        </p>
-
-        <button
-          type="button"
-          onClick={() =>
-            setSelectedGraphMonth((current) => {
-              const date = new Date(current);
-              date.setMonth(date.getMonth() + 1);
-              return date;
-            })
-          }
-          className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20"
-        >
-          Next Month
-        </button>
-      </div>
-    )}
-
-    <div className="mt-7 rounded-3xl border border-white/10 bg-black/40 p-4 md:p-6">
-      <div className="mb-4 flex flex-col gap-2 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
-        <span>
-          Showing:{" "}
-          {durationGraphMode === "month"
-            ? getMonthLabel(selectedGraphMonth)
-            : "Full duration"}
-        </span>
-        <span>Top scale: {visibleGraphTopPercentage}%</span>
-      </div>
-
-      {visibleDateProgressPoints.length === 0 ? (
-        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center">
-          <h3 className="text-xl font-black">No data for this month</h3>
-          <p className="mt-2 text-sm text-zinc-400">
-            Choose another month or switch to full duration view.
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <div
-            className="relative"
-            style={{
-              width: `${graphWidth}px`,
-              minWidth: "900px",
-            }}
-          >
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-72">
-              {[100, 75, 50, 25, 0].map((line) => (
-                <div
-                  key={line}
-                  className="absolute flex w-full items-center gap-3"
-                  style={{ top: `${100 - line}%` }}
-                >
-                  <span className="w-12 text-right text-[10px] text-zinc-600">
-                    {Math.round((visibleGraphTopPercentage * line) / 100)}%
-                  </span>
-                  <div className="h-px flex-1 bg-white/10" />
-                </div>
-              ))}
-            </div>
-
-            <div className="ml-16 flex h-80 items-end gap-3 pb-12 pt-8">
-              {visibleDateProgressPoints.map((point) => {
-                const barHeight = Math.max(
-                  4,
-                  Math.min(
-                    100,
-                    (point.percentage / visibleGraphTopPercentage) * 100
-                  )
-                );
-
-                let barClass = "from-zinc-700 to-zinc-600";
-
-                if (point.isPast && point.percentage === 0) {
-                  barClass = "from-red-500 to-red-300";
-                } else if (point.percentage > 100) {
-                  barClass = "from-blue-500 via-purple-400 to-emerald-300";
-                } else if (point.percentage > 0) {
-                  barClass = "from-emerald-500 to-emerald-300";
-                }
-
-                return (
-                  <div
-                    key={point.date}
-                    className={
-                      durationGraphMode === "full"
-                        ? "group flex h-full w-5 shrink-0 flex-col items-center justify-end"
-                        : "group flex h-full w-8 shrink-0 flex-col items-center justify-end"
-                    }
-                  >
-                    <div className="mb-2 opacity-0 transition group-hover:opacity-100">
-                      <div className="whitespace-nowrap rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-center text-xs shadow-xl">
-                        <p className="font-bold text-white">
-                          {getFullDateForGraph(point.date)}
-                        </p>
-
-                        <p className="mt-1 text-zinc-300">
-                          {point.percentage}%
-                        </p>
-
-                        <p className="mt-1 text-zinc-500">
-                          Done units: {point.completedDayUnits}
-                        </p>
-
-                        {point.ownDayNumbers.length > 0 && (
-                          <p className="mt-1 text-zinc-500">
-                            Days done: Day{" "}
-                            {point.ownDayNumbers.join(", Day ")}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex h-[220px] w-full items-end justify-center">
-                      <div
-                        className={`rounded-t-xl bg-gradient-to-t shadow-lg transition duration-300 group-hover:scale-110 ${
-                          durationGraphMode === "full" ? "w-4" : "w-7"
-                        } ${barClass}`}
-                        style={{ height: `${barHeight}%` }}
-                      />
-                    </div>
-
-                    <div
+                  <div className="flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-2">
+                    <button
+                      type="button"
+                      onClick={() => setDurationGraphMode("month")}
                       className={
-                        point.isToday
-                          ? "mt-2 rounded-lg border border-blue-400/30 bg-blue-400/10 px-1 py-1 text-center"
-                          : "mt-2 px-1 py-1 text-center"
+                        durationGraphMode === "month"
+                          ? "rounded-xl bg-white px-4 py-2 text-xs font-black text-black"
+                          : "rounded-xl px-4 py-2 text-xs font-black text-zinc-300 hover:bg-white/10"
                       }
                     >
-                      <p className="text-[9px] font-bold text-white">
-                        {getShortDateForGraph(point.date)}
-                      </p>
-                    </div>
+                      Month View
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDurationGraphMode("full")}
+                      className={
+                        durationGraphMode === "full"
+                          ? "rounded-xl bg-white px-4 py-2 text-xs font-black text-black"
+                          : "rounded-xl px-4 py-2 text-xs font-black text-zinc-300 hover:bg-white/10"
+                      }
+                    >
+                      Full Duration
+                    </button>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
+                </div>
 
-      <div className="mt-5 flex flex-wrap gap-3 text-xs">
-        <div className="flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-emerald-200">
-          <span className="h-2.5 w-2.5 rounded bg-emerald-400" />
-          1% to 100%
-        </div>
+                <div className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-5">
+                  <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
+                    <p className="text-xs text-emerald-100/70">Average</p>
+                    <h3 className="mt-1 text-2xl font-black text-emerald-200">
+                      {visibleAveragePercentage}%
+                    </h3>
+                  </div>
 
-        <div className="flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-2 text-blue-200">
-          <span className="h-2.5 w-2.5 rounded bg-blue-400" />
-          More than 100%
-        </div>
+                  <div className="rounded-2xl border border-blue-400/20 bg-blue-400/10 p-4">
+                    <p className="text-xs text-blue-100/70">Best Date</p>
+                    <h3 className="mt-1 text-2xl font-black text-blue-200">
+                      {visibleBestDay ? `${visibleBestDay.percentage}%` : "0%"}
+                    </h3>
+                  </div>
 
-        <div className="flex items-center gap-2 rounded-full border border-red-400/20 bg-red-400/10 px-3 py-2 text-red-200">
-          <span className="h-2.5 w-2.5 rounded bg-red-400" />
-          No-work day
-        </div>
+                  <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-4">
+                    <p className="text-xs text-red-100/70">No-work Days</p>
+                    <h3 className="mt-1 text-2xl font-black text-red-200">
+                      {visibleSkippedDays}
+                    </h3>
+                  </div>
 
-        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-300">
-          <span className="h-2.5 w-2.5 rounded bg-zinc-700" />
-          Future / no work
-        </div>
-      </div>
-    </div>
+                  <div className="rounded-2xl border border-purple-400/20 bg-purple-400/10 p-4">
+                    <p className="text-xs text-purple-100/70">
+                      Over 100% Days
+                    </p>
+                    <h3 className="mt-1 text-2xl font-black text-purple-200">
+                      {visibleCatchUpDays}
+                    </h3>
+                  </div>
 
-    <div
-      className={
-        targetPrediction.isOnTrack
-          ? "mt-7 rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5"
-          : "mt-7 rounded-3xl border border-yellow-400/20 bg-yellow-400/10 p-5"
-      }
-    >
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p
-            className={
-              targetPrediction.isOnTrack
-                ? "text-xs font-bold uppercase tracking-[0.25em] text-emerald-200/70"
-                : "text-xs font-bold uppercase tracking-[0.25em] text-yellow-200/70"
-            }
-          >
-            Target Date Prediction
-          </p>
+                  <div
+                    className={
+                      targetPrediction.isOnTrack
+                        ? "rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4"
+                        : "rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-4"
+                    }
+                  >
+                    <p
+                      className={
+                        targetPrediction.isOnTrack
+                          ? "text-xs text-emerald-100/70"
+                          : "text-xs text-yellow-100/70"
+                      }
+                    >
+                      Target Status
+                    </p>
+                    <h3
+                      className={
+                        targetPrediction.isOnTrack
+                          ? "mt-1 text-2xl font-black text-emerald-200"
+                          : "mt-1 text-2xl font-black text-yellow-200"
+                      }
+                    >
+                      {targetPrediction.isOnTrack ? "On Track" : "Risk"}
+                    </h3>
+                  </div>
+                </div>
 
-          <h3
-            className={
-              targetPrediction.isOnTrack
-                ? "mt-3 text-2xl font-black text-emerald-100"
-                : "mt-3 text-2xl font-black text-yellow-100"
-            }
-          >
-            {targetPrediction.message}
-          </h3>
+                {durationGraphMode === "month" && (
+  <div className="mt-5 rounded-2xl border border-white/10 bg-black/30 p-3 md:p-4">
+    <p className="text-center text-lg font-black text-white">
+      {getMonthLabel(selectedGraphMonth)}
+    </p>
 
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-200">
-            {targetPrediction.suggestion}
-          </p>
-        </div>
+    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <button
+        type="button"
+        onClick={() =>
+          setSelectedGraphMonth((current) => {
+            const date = new Date(current);
+            date.setMonth(date.getMonth() - 1);
+            return date;
+          })
+        }
+        className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20"
+      >
+        Previous Month
+      </button>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 lg:min-w-[640px]">
-          <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-            <p className="text-xs text-zinc-400">Target Date</p>
-            <h4 className="mt-2 text-lg font-black">
-              {getShortDateForGraph(targetPrediction.targetDate)}
-            </h4>
-          </div>
+      <button
+        type="button"
+        onClick={() => setSelectedGraphMonth(new Date())}
+        className="rounded-xl border border-blue-400/30 bg-blue-400/10 px-4 py-2 text-sm font-bold text-blue-100 hover:bg-blue-400/20"
+      >
+        Return to Current Month
+      </button>
 
-          <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-            <p className="text-xs text-zinc-400">Days Left</p>
-            <h4 className="mt-2 text-lg font-black">
-              {targetPrediction.remainingDays}
-            </h4>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-            <p className="text-xs text-zinc-400">Plan Days Left</p>
-            <h4 className="mt-2 text-lg font-black">
-              {targetPrediction.remainingPlanDays}
-            </h4>
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-            <p className="text-xs text-zinc-400">Need / Day</p>
-            <h4 className="mt-2 text-lg font-black">
-              {targetPrediction.requiredDaysPerDay}
-            </h4>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-            <p className="text-xs text-zinc-400">Current Speed</p>
-            <h4 className="mt-2 text-lg font-black">
-              {targetPrediction.currentSpeed}
-            </h4>
-          </div>
-        </div>
-      </div>
+      <button
+        type="button"
+        onClick={() =>
+          setSelectedGraphMonth((current) => {
+            const date = new Date(current);
+            date.setMonth(date.getMonth() + 1);
+            return date;
+          })
+        }
+        className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20"
+      >
+        Next Month
+      </button>
     </div>
   </div>
+)}
+
+                <div className="mt-5 rounded-3xl border border-white/10 bg-black/40 p-3 md:mt-7 md:p-6">
+                  <div className="mb-4 flex flex-col gap-2 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                      Showing:{" "}
+                      {durationGraphMode === "month"
+                        ? getMonthLabel(selectedGraphMonth)
+                        : "Full duration"}
+                    </span>
+                    <span>Top scale: {visibleGraphTopPercentage}%</span>
+                  </div>
+
+                  {visibleDateProgressPoints.length === 0 ? (
+                    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center">
+                      <h3 className="text-xl font-black">
+                        No data for this month
+                      </h3>
+                      <p className="mt-2 text-sm text-zinc-400">
+                        Choose another month or switch to full duration view.
+                      </p>
+                    </div>
+                  ) : (
+                  <div className="overflow-x-auto">
+  <div
+    className="relative"
+    style={{
+      width: `${graphWidth}px`,
+      minWidth: durationGraphMode === "month" ? "360px" : "900px",
+    }}
+  >
+    <div className="relative h-[420px] md:h-[470px]">
+      {/* Y-axis grid */}
+      <div className="pointer-events-none absolute left-0 right-0 top-0 h-[280px] md:h-[340px]">
+        {graphTicks.map((tick) => {
+          const topPosition =
+            visibleGraphTopPercentage === 0
+              ? 100
+              : 100 - (tick / visibleGraphTopPercentage) * 100;
+
+          return (
+            <div
+              key={tick}
+              className="absolute flex w-full items-center gap-3"
+              style={{ top: `${topPosition}%` }}
+            >
+              <span className="w-10 text-right text-[10px] text-zinc-600 md:w-12">
+                {tick}%
+              </span>
+
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Bars */}
+      <div className="absolute left-10 right-0 top-0 flex h-[280px] items-end gap-2 md:left-16 md:h-[340px] md:gap-3">
+        {visibleDateProgressPoints.map((point) => {
+          const exactBarHeight =
+            visibleGraphTopPercentage === 0
+              ? 0
+              : (point.percentage / visibleGraphTopPercentage) * 100;
+
+          const barHeight = Math.max(
+            point.percentage > 0 ? 4 : 0,
+            Math.min(100, exactBarHeight)
+          );
+
+          let barClass = "from-zinc-700 to-zinc-600";
+
+          if (point.isPast && point.percentage === 0) {
+            barClass = "from-red-500 to-red-300";
+          } else if (point.percentage > 100) {
+            barClass = "from-blue-500 via-purple-400 to-emerald-300";
+          } else if (point.percentage > 0) {
+            barClass = "from-emerald-500 to-emerald-300";
+          }
+
+          return (
+            <div
+              key={point.date}
+              className={
+                durationGraphMode === "full"
+                  ? "group relative flex h-full w-5 shrink-0 items-end justify-center"
+                  : "group relative flex h-full w-12 shrink-0 items-end justify-center"
+              }
+            >
+              <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-3 hidden -translate-x-1/2 opacity-0 transition group-hover:opacity-100 md:block">
+                <div className="whitespace-nowrap rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-center text-xs shadow-xl">
+                  <p className="font-bold text-white">
+                    {getFullDateForGraph(point.date)}
+                  </p>
+
+                  <p className="mt-1 text-zinc-300">
+                    {point.percentage}%
+                  </p>
+
+                  <p className="mt-1 text-zinc-500">
+                    Done units: {point.completedDayUnits}
+                  </p>
+
+                  {point.ownDayNumbers.length > 0 && (
+  <p className="mt-1 text-zinc-500">
+    Completed plan days: Day {point.ownDayNumbers.join(", Day ")}
+  </p>
+)}
+                </div>
+              </div>
+
+              <div
+                className={`rounded-t-xl bg-gradient-to-t shadow-lg transition duration-300 group-hover:scale-110 ${
+                  durationGraphMode === "full" ? "w-4" : "w-7"
+                } ${barClass}`}
+                style={{ height: `${barHeight}%` }}
+                title={`${getFullDateForGraph(point.date)} • ${point.percentage}%`}
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* X-axis labels */}
+      {/* X-axis labels + completed plan days */}
+<div className="absolute left-10 right-0 top-[292px] flex gap-2 md:left-16 md:top-[352px] md:gap-3">
+  {visibleDateProgressPoints.map((point) => {
+    const completedDayLabel = getCompletedDayLabel(point.ownDayNumbers);
+
+    return (
+      <div
+        key={point.date}
+        className={
+          durationGraphMode === "full"
+            ? "w-5 shrink-0 text-center"
+            : "w-12 shrink-0 text-center"
+        }
+      >
+        <div
+          className={
+            point.isToday
+              ? "rounded-lg border border-blue-400/30 bg-blue-400/10 px-1 py-1"
+              : "px-1 py-1"
+          }
+        >
+          <p className="text-[9px] font-bold text-white">
+            {getShortDateForGraph(point.date)}
+          </p>
+
+          {completedDayLabel && (
+            <p
+              className={
+                point.percentage > 100
+                  ? "mt-1 rounded-md bg-blue-400/10 px-1 py-0.5 text-[8px] font-bold text-blue-200"
+                  : "mt-1 rounded-md bg-emerald-400/10 px-1 py-0.5 text-[8px] font-bold text-emerald-200"
+              }
+              title={`Completed: Day ${point.ownDayNumbers.join(", Day ")}`}
+            >
+              {durationGraphMode === "full"
+                ? `${point.ownDayNumbers.length}D`
+                : completedDayLabel}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  })}
 </div>
-            <div className="grid gap-6 p-6 md:p-8 xl:grid-cols-[1.15fr_0.85fr]">
-              <div className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
+    </div>
+  </div>
+</div>  
+                  )}
+
+                  <div className="mt-4 grid grid-cols-1 gap-2 text-xs sm:flex sm:flex-wrap sm:gap-3">
+                    <div className="flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-emerald-200">
+                      <span className="h-2.5 w-2.5 rounded bg-emerald-400" />
+                      1% to 100%
+                    </div>
+
+                    <div className="flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-2 text-blue-200">
+                      <span className="h-2.5 w-2.5 rounded bg-blue-400" />
+                      More than 100%
+                    </div>
+
+                    <div className="flex items-center gap-2 rounded-full border border-red-400/20 bg-red-400/10 px-3 py-2 text-red-200">
+                      <span className="h-2.5 w-2.5 rounded bg-red-400" />
+                      No-work day
+                    </div>
+
+                    <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-300">
+                      <span className="h-2.5 w-2.5 rounded bg-zinc-700" />
+                      Future / no work
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className={
+                    targetPrediction.isOnTrack
+                      ? "mt-5 rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-4 md:mt-7 md:p-5"
+                      : "mt-5 rounded-3xl border border-yellow-400/20 bg-yellow-400/10 p-4 md:mt-7 md:p-5"
+                  }
+                >
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p
+                        className={
+                          targetPrediction.isOnTrack
+                            ? "text-xs font-bold uppercase tracking-[0.25em] text-emerald-200/70"
+                            : "text-xs font-bold uppercase tracking-[0.25em] text-yellow-200/70"
+                        }
+                      >
+                        Target Date Prediction
+                      </p>
+
+                      <h3
+                        className={
+                          targetPrediction.isOnTrack
+                            ? "mt-3 text-xl font-black text-emerald-100 md:text-2xl"
+                            : "mt-3 text-xl font-black text-yellow-100 md:text-2xl"
+                        }
+                      >
+                        {targetPrediction.message}
+                      </h3>
+
+                      <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-200">
+                        {targetPrediction.suggestion}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:min-w-[640px] lg:grid-cols-5">
+                      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                        <p className="text-xs text-zinc-400">Target Date</p>
+                        <h4 className="mt-2 text-lg font-black">
+                          {getShortDateForGraph(targetPrediction.targetDate)}
+                        </h4>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                        <p className="text-xs text-zinc-400">Days Left</p>
+                        <h4 className="mt-2 text-lg font-black">
+                          {targetPrediction.remainingDays}
+                        </h4>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                        <p className="text-xs text-zinc-400">
+                          Plan Days Left
+                        </p>
+                        <h4 className="mt-2 text-lg font-black">
+                          {targetPrediction.remainingPlanDays}
+                        </h4>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                        <p className="text-xs text-zinc-400">Need / Day</p>
+                        <h4 className="mt-2 text-lg font-black">
+                          {targetPrediction.requiredDaysPerDay}
+                        </h4>
+                      </div>
+
+                      <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                        <p className="text-xs text-zinc-400">Current Speed</p>
+                        <h4 className="mt-2 text-lg font-black">
+                          {targetPrediction.currentSpeed}
+                        </h4>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-5 p-3 md:p-8 xl:grid-cols-[1.15fr_0.85fr]">
+              <div className="rounded-3xl border border-white/10 bg-black/35 p-4 md:rounded-[2rem] md:p-6">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
                       Overall Completion
                     </p>
 
-                    <h2 className="mt-3 text-6xl font-black tracking-tight text-white">
+                    <h2 className="mt-3 text-5xl font-black tracking-tight text-white md:text-6xl">
                       {reportData.progressPercentage}%
                     </h2>
 
@@ -1234,7 +1335,7 @@ const graphWidth = Math.max(
                     </p>
                   </div>
 
-                  <div className="relative mx-auto flex h-44 w-44 items-center justify-center rounded-full border border-white/10 bg-white/[0.03]">
+                  <div className="relative mx-auto flex h-40 w-40 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] md:h-44 md:w-44">
                     <div
                       className="absolute inset-3 rounded-full"
                       style={{
@@ -1243,7 +1344,7 @@ const graphWidth = Math.max(
                         }deg, rgb(39 39 42) 0deg)`,
                       }}
                     />
-                    <div className="relative flex h-32 w-32 flex-col items-center justify-center rounded-full bg-zinc-950 text-center shadow-2xl">
+                    <div className="relative flex h-28 w-28 flex-col items-center justify-center rounded-full bg-zinc-950 text-center shadow-2xl md:h-32 md:w-32">
                       <span className="text-3xl font-black">
                         {reportData.progressPercentage}%
                       </span>
@@ -1257,7 +1358,9 @@ const graphWidth = Math.max(
                 <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
                     <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-                      {goal.trackerType === "normal" ? "Total Ticks" : "Total Days"}
+                      {goal.trackerType === "normal"
+                        ? "Total Ticks"
+                        : "Total Days"}
                     </p>
                     <h3 className="mt-3 text-3xl font-black">
                       {reportData.total}
@@ -1304,7 +1407,10 @@ const graphWidth = Math.max(
                       <div
                         className="h-full rounded-full bg-emerald-300"
                         style={{
-                          width: `${Math.min(reportData.progressPercentage, 100)}%`,
+                          width: `${Math.min(
+                            reportData.progressPercentage,
+                            100
+                          )}%`,
                         }}
                       />
                     </div>
@@ -1325,9 +1431,9 @@ const graphWidth = Math.max(
                 </div>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-5 md:space-y-6">
                 {goal.trackerType === "complex" && (
-                  <div className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
+                  <div className="rounded-3xl border border-white/10 bg-black/35 p-4 md:rounded-[2rem] md:p-6">
                     <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
                       Current Active Plan
                     </p>
@@ -1386,7 +1492,7 @@ const graphWidth = Math.max(
                 )}
 
                 {goal.trackerType === "normal" && (
-                  <div className="rounded-[2rem] border border-emerald-400/20 bg-emerald-400/10 p-6">
+                  <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-4 md:rounded-[2rem] md:p-6">
                     <p className="text-xs font-bold uppercase tracking-[0.25em] text-emerald-200/70">
                       Normal Tracker Summary
                     </p>
@@ -1415,7 +1521,7 @@ const graphWidth = Math.max(
                   </div>
                 )}
 
-                <div className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
+                <div className="rounded-3xl border border-white/10 bg-black/35 p-4 md:rounded-[2rem] md:p-6">
                   <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
                     Goal Details
                   </p>
@@ -1461,20 +1567,20 @@ const graphWidth = Math.max(
             </div>
 
             {aiReport && (
-              <div className="border-t border-white/10 p-6 md:p-8">
-                <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-                  <div className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
+              <div className="border-t border-white/10 p-3 md:p-8">
+                <div className="grid gap-5 xl:grid-cols-[1fr_1fr] xl:gap-6">
+                  <div className="rounded-3xl border border-white/10 bg-black/35 p-4 md:rounded-[2rem] md:p-6">
                     <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
                       AI Summary
                     </p>
-                    <h2 className="mt-3 text-3xl font-black">
+                    <h2 className="mt-3 text-2xl font-black md:text-3xl">
                       Report Analysis
                     </h2>
                     <p className="mt-4 text-sm leading-7 text-zinc-300">
                       {aiReport.summary}
                     </p>
 
-                    <div className="mt-6 rounded-3xl border border-blue-400/20 bg-blue-400/10 p-5">
+                    <div className="mt-6 rounded-3xl border border-blue-400/20 bg-blue-400/10 p-4 md:p-5">
                       <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-200/70">
                         Progress Feedback
                       </p>
@@ -1484,11 +1590,11 @@ const graphWidth = Math.max(
                     </div>
                   </div>
 
-                  <div className="rounded-[2rem] border border-blue-400/20 bg-blue-400/10 p-6">
+                  <div className="rounded-3xl border border-blue-400/20 bg-blue-400/10 p-4 md:rounded-[2rem] md:p-6">
                     <p className="text-xs font-bold uppercase tracking-[0.25em] text-blue-200/70">
                       Weekly Recommendation
                     </p>
-                    <h2 className="mt-3 text-3xl font-black text-blue-100">
+                    <h2 className="mt-3 text-2xl font-black text-blue-100 md:text-3xl">
                       Next Best Direction
                     </h2>
                     <p className="mt-4 text-sm leading-7 text-blue-50/80">
@@ -1504,8 +1610,8 @@ const graphWidth = Math.max(
                   </div>
                 </div>
 
-                <div className="mt-6 grid gap-6 lg:grid-cols-2">
-                  <div className="rounded-[2rem] border border-red-400/20 bg-red-400/10 p-6">
+                <div className="mt-5 grid gap-5 lg:grid-cols-2 lg:gap-6">
+                  <div className="rounded-3xl border border-red-400/20 bg-red-400/10 p-4 md:rounded-[2rem] md:p-6">
                     <p className="text-xs font-bold uppercase tracking-[0.25em] text-red-200/70">
                       Weak Areas
                     </p>
@@ -1525,7 +1631,7 @@ const graphWidth = Math.max(
                     </div>
                   </div>
 
-                  <div className="rounded-[2rem] border border-emerald-400/20 bg-emerald-400/10 p-6">
+                  <div className="rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-4 md:rounded-[2rem] md:p-6">
                     <p className="text-xs font-bold uppercase tracking-[0.25em] text-emerald-200/70">
                       Next Actions
                     </p>
@@ -1549,13 +1655,13 @@ const graphWidth = Math.max(
             )}
 
             {goal.latestTestResult && (
-              <div className="border-t border-white/10 p-6 md:p-8">
-                <div className="rounded-[2rem] border border-purple-400/30 bg-purple-400/10 p-6">
+              <div className="border-t border-white/10 p-3 md:p-8">
+                <div className="rounded-3xl border border-purple-400/30 bg-purple-400/10 p-4 md:rounded-[2rem] md:p-6">
                   <p className="text-xs font-bold uppercase tracking-[0.25em] text-purple-200/70">
                     Latest Weekly Test
                   </p>
 
-                  <h2 className="mt-3 text-3xl font-black text-purple-100">
+                  <h2 className="mt-3 text-2xl font-black text-purple-100 md:text-3xl">
                     Test Result
                   </h2>
 

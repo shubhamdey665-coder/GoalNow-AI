@@ -42,3 +42,39 @@ body {
 .animate-fade-in-up-delay-4 {
   animation: fadeInUp 1.2s ease-out both;
 }
+/* GoalNow AI global mobile polish */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.goalnow-page {
+  width: 100%;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.goalnow-container {
+  width: 100%;
+  max-width: 80rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.goalnow-card {
+  border-radius: 1.25rem;
+  padding: 1rem;
+}
+
+@media (min-width: 768px) {
+  .goalnow-page {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .goalnow-card {
+    border-radius: 2rem;
+    padding: 1.5rem;
+  }
+}
