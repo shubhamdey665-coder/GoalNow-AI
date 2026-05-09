@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -56,7 +57,8 @@ export default function Navbar() {
   async function handleLogout() {
     const confirmLogout = window.confirm("Are you sure you want to logout?");
 
-if (!confirmLogout) return;
+    if (!confirmLogout) return;
+
     setIsLoggingOut(true);
 
     const supabase = createClient();
@@ -119,20 +121,27 @@ if (!confirmLogout) return;
   ];
 
   return (
-    <nav className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/85 px-4 py-3 text-white backdrop-blur-2xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+    <nav className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/85 px-3 py-3 text-white backdrop-blur-2xl md:px-4">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 md:gap-4">
         {/* Logo */}
         <Link
           href="/"
           onClick={() => setIsMobileMenuOpen(false)}
-          className="group flex items-center gap-3"
+          className="group flex min-w-0 items-center gap-3"
         >
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-300 to-blue-500 text-lg font-black text-slate-950 shadow-lg shadow-cyan-500/20 transition group-hover:scale-105">
-            G
+          <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-2xl border border-cyan-300/20 bg-slate-950 shadow-lg shadow-cyan-500/20 transition group-hover:scale-105 md:h-12 md:w-12">
+            <Image
+              src="/goalnow-logo-new.png"
+              alt="GoalNow-AI Logo"
+              fill
+              sizes="48px"
+              className="object-cover"
+              priority
+            />
           </div>
 
-          <div className="leading-tight">
-            <p className="text-lg font-black tracking-tight">
+          <div className="min-w-0 leading-tight">
+            <p className="truncate text-lg font-black tracking-tight md:text-xl">
               GoalNow<span className="text-cyan-300">-AI</span>
             </p>
             <p className="hidden text-xs font-medium text-slate-400 sm:block">
@@ -206,16 +215,12 @@ if (!confirmLogout) return;
               </button>
             </>
           ) : (
-            <>
-              <Link
-                href="/login"
-                className="rounded-2xl border border-white/15 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10"
-              >
-                Login
-              </Link>
-
-              
-            </>
+            <Link
+              href="/login"
+              className="rounded-2xl border border-white/15 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10"
+            >
+              Login
+            </Link>
           )}
         </div>
 
@@ -223,8 +228,8 @@ if (!confirmLogout) return;
         <button
           type="button"
           onClick={() => setIsMobileMenuOpen((current) => !current)}
-          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-2xl font-bold transition hover:bg-white/10 lg:hidden"
-          aria-label="Open menu"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-2xl font-bold transition hover:bg-white/10 lg:hidden"
+          aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
         >
           {isMobileMenuOpen ? "×" : "☰"}
         </button>
@@ -304,8 +309,6 @@ if (!confirmLogout) return;
               >
                 Login
               </Link>
-
-              
             </div>
           )}
         </div>
