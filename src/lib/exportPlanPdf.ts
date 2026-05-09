@@ -35,7 +35,8 @@ export function downloadComplexPlanPdf(goal: Goal) {
   }
 
   const planDays = goal.complexPlanDays || [];
-  const fileName = `goalnow-ai-${getSafeFileName(goal.name)}-plan`;
+const fileName = `goalnow-ai-${getSafeFileName(goal.name)}-plan`;
+const logoUrl = `${window.location.origin}/goalnow-logo-new.png`;
 
   const planHtml = planDays
     .map((day) => {
@@ -201,17 +202,43 @@ export function downloadComplexPlanPdf(goal: Goal) {
       font-size: 18px;
     }
 
-    .brand-mark {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 42px;
-      height: 42px;
-      border-radius: 14px;
-      background: #22d3ee;
-      color: #020617;
-      font-weight: 900;
-    }
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(125, 211, 252, 0.35);
+  background: #020617;
+  box-shadow: 0 12px 28px rgba(34, 211, 238, 0.22);
+}
+
+.brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.plan-mini-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 900;
+  color: #0891b2;
+  white-space: nowrap;
+}
+
+.plan-mini-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  object-fit: cover;
+  border: 1px solid rgba(8, 145, 178, 0.25);
+}
 
     .brand-pill {
       border: 1px solid rgba(255, 255, 255, 0.18);
@@ -485,7 +512,9 @@ export function downloadComplexPlanPdf(goal: Goal) {
       <div class="cover-content">
         <div class="brand">
           <div class="brand-left">
-            <span class="brand-mark">G</span>
+            <span class="brand-logo">
+              <img src="${logoUrl}" alt="GoalNow-AI logo" />
+            </span>
             <span>GoalNow-AI</span>
           </div>
 
@@ -558,7 +587,10 @@ export function downloadComplexPlanPdf(goal: Goal) {
           <p>Each task includes a tickbox for offline tracking.</p>
         </div>
 
-        <div class="pdf-brand">GoalNow-AI</div>
+<div class="plan-mini-brand">
+  <img class="plan-mini-logo" src="${logoUrl}" alt="GoalNow-AI logo" />
+  <span>GoalNow-AI</span>
+</div>
       </div>
 
       ${planHtml || "<p>No plan days found.</p>"}
@@ -570,11 +602,41 @@ export function downloadComplexPlanPdf(goal: Goal) {
   </main>
 
   <script>
-    document.title = "${escapeHtml(fileName)}";
+  document.title = "${escapeHtml(fileName)}";
+
+  function printWhenReady() {
     setTimeout(() => {
       window.print();
-    }, 500);
-  </script>
+    }, 400);
+  }
+
+  const logoImages = Array.from(document.querySelectorAll("img"));
+
+  if (logoImages.length === 0) {
+    printWhenReady();
+  } else {
+    let loadedCount = 0;
+
+    function markLoaded() {
+      loadedCount += 1;
+
+      if (loadedCount >= logoImages.length) {
+        printWhenReady();
+      }
+    }
+
+    logoImages.forEach((img) => {
+      if (img.complete) {
+        markLoaded();
+      } else {
+        img.onload = markLoaded;
+        img.onerror = markLoaded;
+      }
+    });
+
+    setTimeout(printWhenReady, 1500);
+  }
+</script>
 </body>
 </html>
 `;
