@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect,  useState } from "react";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -172,6 +172,329 @@ function getDateLabel(dateString?: string) {
     year: "numeric",
   });
 }
+type RealDateProgressPoint = {
+  date: string;
+  percentage: number;
+  completedDayUnits: number;
+  completedTaskCount: number;
+  ownDayNumbers: number[];
+  isToday: boolean;
+  isPast: boolean;
+};
+
+type TargetPrediction = {
+  targetDate: string;
+  remainingDays: number;
+  remainingPlanDays: number;
+  requiredDaysPerDay: number;
+  currentSpeed: number;
+  isOnTrack: boolean;
+  message: string;
+  suggestion: string;
+};
+
+function getDateKeyFromDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function addDaysToDate(dateInput: Date, amount: number) {
+  const date = new Date(dateInput);
+  date.setDate(date.getDate() + amount);
+  return date;
+}
+
+function getStartOfDay(dateInput: string | Date) {
+  const date = new Date(dateInput);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function getDaysBetween(startDate: Date, endDate: Date) {
+  const start = getStartOfDay(startDate);
+  const end = getStartOfDay(endDate);
+
+  return Math.floor(
+    (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+  );
+}
+
+function getMonthStart(dateInput: Date) {
+  const date = new Date(dateInput);
+  date.setDate(1);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function getMonthEnd(dateInput: Date) {
+  const date = new Date(dateInput);
+  date.setMonth(date.getMonth() + 1);
+  date.setDate(0);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function getMonthLabel(dateInput: Date) {
+  return dateInput.toLocaleDateString("en-IN", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function getShortDateForGraph(dateString: string) {
+  return new Date(dateString).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+  });
+}
+
+function getFullDateForGraph(dateString: string) {
+  return new Date(dateString).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function getGoalTargetDate(goal: Goal) {
+  const goalWithPossibleTargetDate = goal as Goal & {
+    targetDate?: string;
+    deadline?: string;
+  };
+
+  if (goalWithPossibleTargetDate.targetDate) {
+    return getStartOfDay(goalWithPossibleTargetDate.targetDate);
+  }
+
+  if (goalWithPossibleTargetDate.deadline) {
+    return getStartOfDay(goalWithPossibleTargetDate.deadline);
+  }
+
+  const createdAt = getStartOfDay(goal.createdAt);
+
+  if (goal.trackerType === "complex") {
+    const totalPlanDays = goal.complexPlanDays?.length || 1;
+    return addDaysToDate(createdAt, totalPlanDays - 1);
+  }
+
+  const totalNormalDays = goal.normalCheckIns?.length || 1;
+  return addDaysToDate(createdAt, totalNormalDays - 1);
+}
+
+function getRealDateProgressPoints(goal: Goal) {
+  const createdAt = getStartOfDay(goal.createdAt);
+  const today = getStartOfDay(new Date());
+  const targetDate = getGoalTargetDate(goal);
+
+  let lastDate = targetDate > today ? targetDate : today;
+
+  if (goal.trackerType === "complex") {
+    for (const planDay of goal.complexPlanDays || []) {
+      for (const task of planDay.tasks) {
+        if (!task.completedAt) continue;
+
+        const completedDate = getStartOfDay(task.completedAt);
+
+        if (completedDate > lastDate) {
+          lastDate = completedDate;
+        }
+      }
+    }
+  }
+
+  if (goal.trackerType === "normal") {
+    for (const checkIn of goal.normalCheckIns || []) {
+      const possibleCompletedAt = (checkIn as typeof checkIn & {
+        completedAt?: string;
+        date?: string;
+      }).completedAt;
+
+      const possibleDate = (checkIn as typeof checkIn & {
+        completedAt?: string;
+        date?: string;
+      }).date;
+
+      const dateValue = possibleCompletedAt || possibleDate;
+
+      if (!dateValue) continue;
+
+      const completedDate = getStartOfDay(dateValue);
+
+      if (completedDate > lastDate) {
+        lastDate = completedDate;
+      }
+    }
+  }
+
+  const totalDates = getDaysBetween(createdAt, lastDate) + 1;
+
+  const points: RealDateProgressPoint[] = Array.from(
+    { length: totalDates },
+    (_, index) => {
+      const date = addDaysToDate(createdAt, index);
+      const dateKey = getDateKeyFromDate(date);
+
+      return {
+        date: dateKey,
+        percentage: 0,
+        completedDayUnits: 0,
+        completedTaskCount: 0,
+        ownDayNumbers: [],
+        isToday: dateKey === getDateKeyFromDate(today),
+        isPast: date < today,
+      };
+    }
+  );
+
+  const pointMap = new Map(points.map((point) => [point.date, point]));
+
+  if (goal.trackerType === "complex") {
+    for (const planDay of goal.complexPlanDays || []) {
+      const totalTasksInDay = planDay.tasks.length || 1;
+
+      for (const task of planDay.tasks) {
+        if (!task.completedAt) continue;
+
+        const completedDateKey = getDateKeyFromDate(new Date(task.completedAt));
+        const point = pointMap.get(completedDateKey);
+
+        if (!point) continue;
+
+        const taskDayUnit = 100 / totalTasksInDay;
+
+        point.percentage += taskDayUnit;
+        point.completedDayUnits += taskDayUnit / 100;
+        point.completedTaskCount += 1;
+
+        if (!point.ownDayNumbers.includes(planDay.dayNumber)) {
+          point.ownDayNumbers.push(planDay.dayNumber);
+        }
+      }
+    }
+  }
+
+  if (goal.trackerType === "normal") {
+    for (const checkIn of goal.normalCheckIns || []) {
+      if (!checkIn.completed) continue;
+
+      const checkInWithDates = checkIn as typeof checkIn & {
+        completedAt?: string;
+        date?: string;
+      };
+
+      const dateValue = checkInWithDates.completedAt || checkInWithDates.date;
+
+      if (!dateValue) continue;
+
+      const completedDateKey = getDateKeyFromDate(new Date(dateValue));
+      const point = pointMap.get(completedDateKey);
+
+      if (!point) continue;
+
+      point.percentage += 100;
+      point.completedDayUnits += 1;
+      point.completedTaskCount += 1;
+    }
+  }
+
+  return points.map((point) => ({
+    ...point,
+    percentage: Math.round(point.percentage),
+    completedDayUnits: Number(point.completedDayUnits.toFixed(2)),
+    ownDayNumbers: point.ownDayNumbers.sort((a, b) => a - b),
+  }));
+}
+
+function getVisibleDateProgressPoints(
+  allPoints: RealDateProgressPoint[],
+  mode: "month" | "full",
+  selectedMonth: Date
+) {
+  if (mode === "full") {
+    return allPoints;
+  }
+
+  const monthStart = getMonthStart(selectedMonth);
+  const monthEnd = getMonthEnd(selectedMonth);
+
+  return allPoints.filter((point) => {
+    const date = getStartOfDay(point.date);
+    return date >= monthStart && date <= monthEnd;
+  });
+}
+
+function getTargetPrediction(
+  goal: Goal,
+  progressPoints: RealDateProgressPoint[]
+): TargetPrediction {
+  const today = getStartOfDay(new Date());
+  const targetDate = getGoalTargetDate(goal);
+
+  const completedDayUnits = progressPoints.reduce(
+    (total, point) => total + point.completedDayUnits,
+    0
+  );
+
+  const totalPlanDays =
+    goal.trackerType === "complex"
+      ? goal.complexPlanDays?.length || 0
+      : goal.normalCheckIns?.length || 0;
+
+  const remainingPlanDays = Math.max(
+    0,
+    Math.ceil(totalPlanDays - completedDayUnits)
+  );
+
+  const remainingDays = Math.max(0, getDaysBetween(today, targetDate) + 1);
+
+  const requiredDaysPerDay =
+    remainingDays === 0
+      ? remainingPlanDays
+      : Number((remainingPlanDays / remainingDays).toFixed(2));
+
+  const createdAt = getStartOfDay(goal.createdAt);
+  const daysSinceCreation = Math.max(1, getDaysBetween(createdAt, today) + 1);
+
+  const currentSpeed = Number(
+    (completedDayUnits / daysSinceCreation).toFixed(2)
+  );
+
+  const isOnTrack =
+    remainingPlanDays === 0 ||
+    (remainingDays > 0 && currentSpeed >= requiredDaysPerDay);
+
+  let message = "You are on track to complete the plan on time.";
+  let suggestion =
+    "Keep your current pace and continue completing the active day properly.";
+
+  if (remainingPlanDays === 0) {
+    message = "You have completed the planned workload.";
+    suggestion = "Use the remaining time for revision, tests, and improvement.";
+  } else if (remainingDays <= 0) {
+    message = "The target date has arrived or passed.";
+    suggestion =
+      "Extend the target date or increase daily completion carefully with a smaller recovery plan.";
+  } else if (!isOnTrack) {
+    message =
+      "At your current speed, you may not complete the plan by target date.";
+    suggestion = `You need around ${requiredDaysPerDay} plan day(s) per day. Your current average speed is ${currentSpeed} plan day(s) per day, so complete today's active day first, then add catch-up work slowly.`;
+  }
+
+  return {
+    targetDate: getDateKeyFromDate(targetDate),
+    remainingDays,
+    remainingPlanDays,
+    requiredDaysPerDay,
+    currentSpeed,
+    isOnTrack,
+    message,
+    suggestion,
+  };
+}
+
 
 export default function ReportPage() {
   const params = useParams();
@@ -185,6 +508,13 @@ export default function ReportPage() {
   const [reportSource, setReportSource] = useState<"gemini" | "fallback">(
     "fallback"
   );
+  const [durationGraphMode, setDurationGraphMode] = useState<"month" | "full">(
+  "month"
+);
+
+const [selectedGraphMonth, setSelectedGraphMonth] = useState<Date>(
+  new Date()
+);
 
   useEffect(() => {
     let isMounted = true;
@@ -205,6 +535,7 @@ export default function ReportPage() {
         }
 
         setGoal(foundGoal);
+        setSelectedGraphMonth(new Date(foundGoal.createdAt));
 
         const localReportData = getReportDataFromGoal(foundGoal);
         setAiReport(getFallbackAiReport(foundGoal, localReportData));
@@ -390,6 +721,51 @@ export default function ReportPage() {
       ? activeDay?.tasks.filter((task) => !task.completed) || []
       : [];
 
+
+const realDateProgressPoints = getRealDateProgressPoints(goal);
+
+const visibleDateProgressPoints = getVisibleDateProgressPoints(
+  realDateProgressPoints,
+  durationGraphMode,
+  selectedGraphMonth
+);
+
+const targetPrediction = getTargetPrediction(goal, realDateProgressPoints);
+
+const visibleTotalPercentage = visibleDateProgressPoints.reduce(
+  (total, point) => total + point.percentage,
+  0
+);
+
+const visibleAveragePercentage =
+  visibleDateProgressPoints.length === 0
+    ? 0
+    : Math.round(visibleTotalPercentage / visibleDateProgressPoints.length);
+
+const visibleBestDay = [...visibleDateProgressPoints].sort(
+  (a, b) => b.percentage - a.percentage
+)[0];
+
+const visibleSkippedDays = visibleDateProgressPoints.filter(
+  (point) => point.isPast && point.percentage === 0
+).length;
+
+const visibleCatchUpDays = visibleDateProgressPoints.filter(
+  (point) => point.percentage > 100
+).length;
+
+const visibleMaxPercentage = Math.max(
+  100,
+  ...visibleDateProgressPoints.map((point) => point.percentage)
+);
+
+const visibleGraphTopPercentage = Math.ceil(visibleMaxPercentage / 100) * 100;
+
+const graphWidth = Math.max(
+  900,
+  visibleDateProgressPoints.length * (durationGraphMode === "full" ? 28 : 42)
+);
+ 
   return (
     <>
       <Navbar />
@@ -483,7 +859,364 @@ export default function ReportPage() {
                 </div>
               </div>
             </div>
+ 
+<div className="border-b border-white/10 p-6 md:p-8">
+  <div className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
+    <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.25em] text-zinc-500">
+          Total Duration Progress
+        </p>
 
+        <h2 className="mt-3 text-3xl font-black">
+          Date vs Completion Percentage
+        </h2>
+
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-400">
+          This graph starts from your goal creation date, but progress is counted
+          only on the exact date when you completed tasks. If you complete Day 2
+          and Day 3 together on one date, that date shows 200%.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-2">
+        <button
+          type="button"
+          onClick={() => setDurationGraphMode("month")}
+          className={
+            durationGraphMode === "month"
+              ? "rounded-xl bg-white px-4 py-2 text-xs font-black text-black"
+              : "rounded-xl px-4 py-2 text-xs font-black text-zinc-300 hover:bg-white/10"
+          }
+        >
+          Month View
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setDurationGraphMode("full")}
+          className={
+            durationGraphMode === "full"
+              ? "rounded-xl bg-white px-4 py-2 text-xs font-black text-black"
+              : "rounded-xl px-4 py-2 text-xs font-black text-zinc-300 hover:bg-white/10"
+          }
+        >
+          Full Duration
+        </button>
+      </div>
+    </div>
+
+    <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
+        <p className="text-xs text-emerald-100/70">Average</p>
+        <h3 className="mt-1 text-2xl font-black text-emerald-200">
+          {visibleAveragePercentage}%
+        </h3>
+      </div>
+
+      <div className="rounded-2xl border border-blue-400/20 bg-blue-400/10 p-4">
+        <p className="text-xs text-blue-100/70">Best Date</p>
+        <h3 className="mt-1 text-2xl font-black text-blue-200">
+          {visibleBestDay ? `${visibleBestDay.percentage}%` : "0%"}
+        </h3>
+      </div>
+
+      <div className="rounded-2xl border border-red-400/20 bg-red-400/10 p-4">
+        <p className="text-xs text-red-100/70">No-work Days</p>
+        <h3 className="mt-1 text-2xl font-black text-red-200">
+          {visibleSkippedDays}
+        </h3>
+      </div>
+
+      <div className="rounded-2xl border border-purple-400/20 bg-purple-400/10 p-4">
+        <p className="text-xs text-purple-100/70">Over 100% Days</p>
+        <h3 className="mt-1 text-2xl font-black text-purple-200">
+          {visibleCatchUpDays}
+        </h3>
+      </div>
+
+      <div
+        className={
+          targetPrediction.isOnTrack
+            ? "rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4"
+            : "rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-4"
+        }
+      >
+        <p
+          className={
+            targetPrediction.isOnTrack
+              ? "text-xs text-emerald-100/70"
+              : "text-xs text-yellow-100/70"
+          }
+        >
+          Target Status
+        </p>
+        <h3
+          className={
+            targetPrediction.isOnTrack
+              ? "mt-1 text-2xl font-black text-emerald-200"
+              : "mt-1 text-2xl font-black text-yellow-200"
+          }
+        >
+          {targetPrediction.isOnTrack ? "On Track" : "Risk"}
+        </h3>
+      </div>
+    </div>
+
+    {durationGraphMode === "month" && (
+      <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <button
+          type="button"
+          onClick={() =>
+            setSelectedGraphMonth((current) => {
+              const date = new Date(current);
+              date.setMonth(date.getMonth() - 1);
+              return date;
+            })
+          }
+          className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20"
+        >
+          Previous Month
+        </button>
+
+        <p className="text-center text-lg font-black text-white">
+          {getMonthLabel(selectedGraphMonth)}
+        </p>
+
+        <button
+          type="button"
+          onClick={() =>
+            setSelectedGraphMonth((current) => {
+              const date = new Date(current);
+              date.setMonth(date.getMonth() + 1);
+              return date;
+            })
+          }
+          className="rounded-xl border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20"
+        >
+          Next Month
+        </button>
+      </div>
+    )}
+
+    <div className="mt-7 rounded-3xl border border-white/10 bg-black/40 p-4 md:p-6">
+      <div className="mb-4 flex flex-col gap-2 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
+        <span>
+          Showing:{" "}
+          {durationGraphMode === "month"
+            ? getMonthLabel(selectedGraphMonth)
+            : "Full duration"}
+        </span>
+        <span>Top scale: {visibleGraphTopPercentage}%</span>
+      </div>
+
+      {visibleDateProgressPoints.length === 0 ? (
+        <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center">
+          <h3 className="text-xl font-black">No data for this month</h3>
+          <p className="mt-2 text-sm text-zinc-400">
+            Choose another month or switch to full duration view.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <div
+            className="relative"
+            style={{
+              width: `${graphWidth}px`,
+              minWidth: "900px",
+            }}
+          >
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-72">
+              {[100, 75, 50, 25, 0].map((line) => (
+                <div
+                  key={line}
+                  className="absolute flex w-full items-center gap-3"
+                  style={{ top: `${100 - line}%` }}
+                >
+                  <span className="w-12 text-right text-[10px] text-zinc-600">
+                    {Math.round((visibleGraphTopPercentage * line) / 100)}%
+                  </span>
+                  <div className="h-px flex-1 bg-white/10" />
+                </div>
+              ))}
+            </div>
+
+            <div className="ml-16 flex h-80 items-end gap-3 pb-12 pt-8">
+              {visibleDateProgressPoints.map((point) => {
+                const barHeight = Math.max(
+                  4,
+                  Math.min(
+                    100,
+                    (point.percentage / visibleGraphTopPercentage) * 100
+                  )
+                );
+
+                let barClass = "from-zinc-700 to-zinc-600";
+
+                if (point.isPast && point.percentage === 0) {
+                  barClass = "from-red-500 to-red-300";
+                } else if (point.percentage > 100) {
+                  barClass = "from-blue-500 via-purple-400 to-emerald-300";
+                } else if (point.percentage > 0) {
+                  barClass = "from-emerald-500 to-emerald-300";
+                }
+
+                return (
+                  <div
+                    key={point.date}
+                    className={
+                      durationGraphMode === "full"
+                        ? "group flex h-full w-5 shrink-0 flex-col items-center justify-end"
+                        : "group flex h-full w-8 shrink-0 flex-col items-center justify-end"
+                    }
+                  >
+                    <div className="mb-2 opacity-0 transition group-hover:opacity-100">
+                      <div className="whitespace-nowrap rounded-xl border border-white/10 bg-zinc-950 px-3 py-2 text-center text-xs shadow-xl">
+                        <p className="font-bold text-white">
+                          {getFullDateForGraph(point.date)}
+                        </p>
+
+                        <p className="mt-1 text-zinc-300">
+                          {point.percentage}%
+                        </p>
+
+                        <p className="mt-1 text-zinc-500">
+                          Done units: {point.completedDayUnits}
+                        </p>
+
+                        {point.ownDayNumbers.length > 0 && (
+                          <p className="mt-1 text-zinc-500">
+                            Days done: Day{" "}
+                            {point.ownDayNumbers.join(", Day ")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex h-[220px] w-full items-end justify-center">
+                      <div
+                        className={`rounded-t-xl bg-gradient-to-t shadow-lg transition duration-300 group-hover:scale-110 ${
+                          durationGraphMode === "full" ? "w-4" : "w-7"
+                        } ${barClass}`}
+                        style={{ height: `${barHeight}%` }}
+                      />
+                    </div>
+
+                    <div
+                      className={
+                        point.isToday
+                          ? "mt-2 rounded-lg border border-blue-400/30 bg-blue-400/10 px-1 py-1 text-center"
+                          : "mt-2 px-1 py-1 text-center"
+                      }
+                    >
+                      <p className="text-[9px] font-bold text-white">
+                        {getShortDateForGraph(point.date)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5 flex flex-wrap gap-3 text-xs">
+        <div className="flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-emerald-200">
+          <span className="h-2.5 w-2.5 rounded bg-emerald-400" />
+          1% to 100%
+        </div>
+
+        <div className="flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-2 text-blue-200">
+          <span className="h-2.5 w-2.5 rounded bg-blue-400" />
+          More than 100%
+        </div>
+
+        <div className="flex items-center gap-2 rounded-full border border-red-400/20 bg-red-400/10 px-3 py-2 text-red-200">
+          <span className="h-2.5 w-2.5 rounded bg-red-400" />
+          No-work day
+        </div>
+
+        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-zinc-300">
+          <span className="h-2.5 w-2.5 rounded bg-zinc-700" />
+          Future / no work
+        </div>
+      </div>
+    </div>
+
+    <div
+      className={
+        targetPrediction.isOnTrack
+          ? "mt-7 rounded-3xl border border-emerald-400/20 bg-emerald-400/10 p-5"
+          : "mt-7 rounded-3xl border border-yellow-400/20 bg-yellow-400/10 p-5"
+      }
+    >
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p
+            className={
+              targetPrediction.isOnTrack
+                ? "text-xs font-bold uppercase tracking-[0.25em] text-emerald-200/70"
+                : "text-xs font-bold uppercase tracking-[0.25em] text-yellow-200/70"
+            }
+          >
+            Target Date Prediction
+          </p>
+
+          <h3
+            className={
+              targetPrediction.isOnTrack
+                ? "mt-3 text-2xl font-black text-emerald-100"
+                : "mt-3 text-2xl font-black text-yellow-100"
+            }
+          >
+            {targetPrediction.message}
+          </h3>
+
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-200">
+            {targetPrediction.suggestion}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5 lg:min-w-[640px]">
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+            <p className="text-xs text-zinc-400">Target Date</p>
+            <h4 className="mt-2 text-lg font-black">
+              {getShortDateForGraph(targetPrediction.targetDate)}
+            </h4>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+            <p className="text-xs text-zinc-400">Days Left</p>
+            <h4 className="mt-2 text-lg font-black">
+              {targetPrediction.remainingDays}
+            </h4>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+            <p className="text-xs text-zinc-400">Plan Days Left</p>
+            <h4 className="mt-2 text-lg font-black">
+              {targetPrediction.remainingPlanDays}
+            </h4>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+            <p className="text-xs text-zinc-400">Need / Day</p>
+            <h4 className="mt-2 text-lg font-black">
+              {targetPrediction.requiredDaysPerDay}
+            </h4>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+            <p className="text-xs text-zinc-400">Current Speed</p>
+            <h4 className="mt-2 text-lg font-black">
+              {targetPrediction.currentSpeed}
+            </h4>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
             <div className="grid gap-6 p-6 md:p-8 xl:grid-cols-[1.15fr_0.85fr]">
               <div className="rounded-[2rem] border border-white/10 bg-black/35 p-6">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
