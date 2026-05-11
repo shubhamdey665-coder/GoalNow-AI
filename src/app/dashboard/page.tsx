@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import {
@@ -10,11 +11,16 @@ import {
 } from "@/lib/goals/supabaseGoals";
 import type { Goal } from "@/types/goal";
 import DashboardWelcome from "@/components/DashboardWelcome";
+import { createClient } from "@/lib/supabase/client";
 
 export default function DashboardPage() {
+  const router = useRouter();
+const [isLoggedOut, setIsLoggedOut] = useState(false);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [isLoadingGoals, setIsLoadingGoals] = useState(true);
   const [goalError, setGoalError] = useState("");
+  const [userName, setUserName] = useState("");
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
   const [selectedTrackerType, setSelectedTrackerType] = useState("All Trackers");
@@ -23,11 +29,35 @@ export default function DashboardPage() {
  useEffect(() => {
   let isMounted = true;
 
-  async function loadGoals() {
+  async function loadDashboard() {
     setIsLoadingGoals(true);
     setGoalError("");
+    setIsLoggedOut(false);
 
     try {
+      const supabase = createClient();
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!isMounted) return;
+
+      if (!user) {
+        setIsLoggedOut(true);
+        setUserName("");
+        setGoals([]);
+        return;
+      }
+
+      const displayName =
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email?.split("@")[0] ||
+        "User";
+
+      setUserName(displayName);
+
       const supabaseGoals = await getGoalsFromSupabase();
 
       if (!isMounted) return;
@@ -36,23 +66,22 @@ export default function DashboardPage() {
     } catch (error) {
       if (!isMounted) return;
 
-      setGoalError(
-        error instanceof Error ? error.message : "Could not load your goals."
-      );
+      const message =
+        error instanceof Error ? error.message : "Could not load your goals.";
+
+      setGoalError(message);
     } finally {
       if (!isMounted) return;
-
       setIsLoadingGoals(false);
     }
   }
 
-  loadGoals();
+  loadDashboard();
 
   return () => {
     isMounted = false;
   };
 }, []);
-
   function getGoalProgress(goal: Goal) {
     if (goal.trackerType === "normal") {
       const checkIns = goal.normalCheckIns || [];
@@ -241,7 +270,7 @@ return (
 
     <main className="min-h-screen bg-slate-950 px-4 py-6 text-white md:px-6 md:py-10">
       <section className="mx-auto max-w-7xl">
-        <DashboardWelcome />
+        {!isLoggedOut && <DashboardWelcome userName={userName || "User"} />}
         {/* Header */}
         <div className="relative mt-6 overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl md:p-8">
           <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" />
@@ -284,6 +313,53 @@ return (
           </div>
         </div>
 
+{isLoggedOut && !isLoadingGoals && (
+  <section className="mx-auto mt-10 max-w-3xl rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 text-center shadow-2xl shadow-black/30">
+    <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-cyan-400/10 text-3xl">
+      🔐
+    </div>
+
+    <p className="mb-3 text-xs font-black uppercase tracking-[0.35em] text-cyan-300">
+      Account Required
+    </p>
+
+    <h2 className="text-3xl font-black text-white md:text-4xl">
+      Login to open your dashboard
+    </h2>
+
+    <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-slate-400">
+      Your GoalNow-AI goals are now saved with your Supabase account.
+      Please login to view your personal trackers, progress, weekly tests,
+      and AI mentor history.
+    </p>
+
+    <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+      <button
+        type="button"
+        onClick={() => router.push("/login?redirect=/dashboard")}
+        className="rounded-2xl bg-cyan-400 px-6 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-300"
+      >
+        Login Now
+      </button>
+
+      <button
+        type="button"
+        onClick={() => router.push("/signup?redirect=/dashboard")}
+        className="rounded-2xl border border-white/10 bg-white/10 px-6 py-3 text-sm font-black text-white transition hover:bg-white/20"
+      >
+        Create Account
+      </button>
+
+      <button
+        type="button"
+        onClick={() => router.push("/")}
+        className="rounded-2xl border border-white/10 px-6 py-3 text-sm font-black text-slate-300 transition hover:bg-white/10"
+      >
+        Back to Home
+      </button>
+    </div>
+  </section>
+)}
         {goalError && (
           <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
             {goalError}

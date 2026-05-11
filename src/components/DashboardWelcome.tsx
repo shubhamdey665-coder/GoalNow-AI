@@ -1,36 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+type DashboardWelcomeProps = {
+  userName: string;
+};
 
-export default function DashboardWelcome() {
-  const [firstName, setFirstName] = useState("User");
-
-  useEffect(() => {
-    async function loadUserName() {
-      const supabase = createClient();
-
-      const { data } = await supabase.auth.getUser();
-
-      const user = data.user;
-
-      if (!user) return;
-
-      const metadata = user.user_metadata || {};
-
-      const fullName =
-        metadata.full_name ||
-        metadata.name ||
-        user.email?.split("@")[0] ||
-        "User";
-
-      const onlyFirstName = fullName.trim().split(" ")[0];
-
-      setFirstName(onlyFirstName || "User");
-    }
-
-    loadUserName();
-  }, []);
+export default function DashboardWelcome({ userName }: DashboardWelcomeProps) {
+  const firstName = userName.trim().split(" ")[0] || "User";
 
   return (
     <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.05] p-6 shadow-2xl shadow-cyan-500/10 md:p-8">
