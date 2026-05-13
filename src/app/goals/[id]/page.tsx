@@ -5,6 +5,7 @@ import { useEffect,useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import ConfirmModal from "@/components/ConfirmModal";
 
 import {
   deleteGoalFromSupabase,
@@ -169,17 +170,29 @@ export default function GoalDetailPage() {
 
   const [goal, setGoal] = useState<Goal | null>(null);
   const [isLoadingGoal, setIsLoadingGoal] = useState(true);
-  const [goalError, setGoalError] = useState("");
+const [goalMessage, setGoalMessage] = useState("");
+const [goalMessageType, setGoalMessageType] = useState<
+  "success" | "error" | "info"
+>("info");
   const [normalCalendarDate, setNormalCalendarDate] = useState(new Date());
   const [showFullPlan, setShowFullPlan] = useState(false);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
   const actionMenuRef = useRef<HTMLDivElement | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+const [isDeletingGoal, setIsDeletingGoal] = useState(false);
+
+const [recoverRequest, setRecoverRequest] = useState<{
+  dayNumber: number;
+  missedDate: string;
+} | null>(null);
+
+const [isRecoveringMissedDate, setIsRecoveringMissedDate] = useState(false);
   useEffect(() => {
   let isMounted = true;
 
   async function loadGoal() {
     setIsLoadingGoal(true);
-    setGoalError("");
+   
 
     try {
       const foundGoal = await getGoalByIdFromSupabase(goalId);
@@ -206,9 +219,10 @@ export default function GoalDetailPage() {
       if (!isMounted) return;
 
       setGoal(null);
-      setGoalError(
-        error instanceof Error ? error.message : "Could not load this goal."
-      );
+      setGoalMessageType("error");
+setGoalMessage(
+  error instanceof Error ? error.message : "Could not load this goal."
+);
     } finally {
       if (!isMounted) return;
 
@@ -255,8 +269,7 @@ useEffect(() => {
   const previousGoal = goal;
 
   setGoal(updatedGoal);
-  setGoalError("");
-
+  setGoalMessage("");
   try {
     const savedGoal = await updateGoalInSupabase(updatedGoal);
     setGoal(savedGoal);
@@ -265,9 +278,10 @@ useEffect(() => {
       setGoal(previousGoal);
     }
 
-    setGoalError(
-      error instanceof Error ? error.message : "Could not update this goal."
-    );
+    setGoalMessageType("error");
+setGoalMessage(
+  error instanceof Error ? error.message : "Could not update this goal."
+);
   }
 }
 
@@ -275,7 +289,8 @@ useEffect(() => {
     if (!goal) return;
 
     if (date > getTodayString()) {
-      setGoalError("Future dates cannot be marked. You can only mark today or past dates.");
+      setGoalMessageType("info");
+setGoalMessage("Future dates cannot be marked. You can only mark today or past dates.");
       return;
     }
 
@@ -415,57 +430,68 @@ function goToCurrentMonth() {
   saveUpdatedGoal(updatedGoal);
 }
 function recoverMissedDate(dayNumber: number, missedDate: string) {
-  if (!goal || !goal.complexPlanDays) return;
-
-  const confirmRecover = window.confirm(
-    `Mark ${new Date(missedDate).toLocaleDateString()} as recovered? Use this only if you actually completed the study later.`
-  );
-
-  if (!confirmRecover) return;
-
-  const updatedPlanDays = goal.complexPlanDays.map((day) => {
-    if (day.dayNumber !== dayNumber) {
-      return day;
-    }
-
-    return {
-      ...day,
-      missedDates: (day.missedDates || []).filter(
-        (date) => date !== missedDate
-      ),
-    };
+  setRecoverRequest({
+    dayNumber,
+    missedDate,
   });
+}
 
-  const updatedGoal: Goal = {
-    ...goal,
-    complexPlanDays: updatedPlanDays,
-    updatedAt: new Date().toISOString(),
-  };
+async function confirmRecoverMissedDate() {
+  if (!goal || !goal.complexPlanDays || !recoverRequest) return;
 
-  saveUpdatedGoal(updatedGoal);
+  setIsRecoveringMissedDate(true);
+
+  try {
+    const updatedPlanDays = goal.complexPlanDays.map((day) => {
+      if (day.dayNumber !== recoverRequest.dayNumber) {
+        return day;
+      }
+
+      return {
+        ...day,
+        missedDates: (day.missedDates || []).filter(
+          (date) => date !== recoverRequest.missedDate
+        ),
+      };
+    });
+
+    const updatedGoal: Goal = {
+      ...goal,
+      complexPlanDays: updatedPlanDays,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await saveUpdatedGoal(updatedGoal);
+    setRecoverRequest(null);
+  } finally {
+    setIsRecoveringMissedDate(false);
+  }
 }
         
 
-  async function deleteGoal() {
+function deleteGoal() {
+  setShowDeleteConfirm(true);
+}
+
+async function confirmDeleteGoal() {
   if (!goal) return;
 
-  const confirmDelete = window.confirm(
-    `Are you sure you want to delete "${goal.name}"?`
-  );
-
-  if (!confirmDelete) return;
-
+  setIsDeletingGoal(true);
+  setGoalMessage("");
   try {
     await deleteGoalFromSupabase(goal.id);
+    setShowDeleteConfirm(false);
     router.push("/dashboard");
     router.refresh();
   } catch (error) {
-    setGoalError(
-      error instanceof Error ? error.message : "Could not delete this goal."
-    );
+    setGoalMessageType("error");
+setGoalMessage(
+  error instanceof Error ? error.message : "Could not delete this goal."
+);
+  } finally {
+    setIsDeletingGoal(false);
   }
 }
-
   function exportGoalSummary() {
     if (!goal) return;
 
@@ -490,13 +516,15 @@ Last Updated: ${
 `;
 
     navigator.clipboard.writeText(summary.trim());
-    alert("Goal summary copied to clipboard.");
+   setGoalMessageType("success");
+setGoalMessage("Goal summary copied to clipboard.");
   }
   function downloadPlanPdf() {
     if (!goal) return;
 
     if (goal.trackerType !== "complex") {
-      alert("PDF plan download is only available for complex AI trackers.");
+      setGoalMessageType("info");
+setGoalMessage("PDF plan download is only available for complex AI trackers.");
       return;
     }
 
@@ -592,11 +620,12 @@ Last Updated: ${
           </section>
         </main>
 
-        <Footer />
-      </>
-    );
-  }
+             <Footer />
 
+      
+    </>
+  );
+}
   const progressPercentage = getProgressPercentage();
 
 const todayString = getTodayString();
@@ -716,11 +745,19 @@ const priorityStyle =
           <Link href="/dashboard" className="text-sm text-blue-300">
             ← Back to Dashboard
           </Link>
-          {goalError && (
-            <div className="mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">
-              {goalError}
-            </div>
-          )}
+          {goalMessage && (
+  <div
+    className={
+      goalMessageType === "success"
+        ? "mt-6 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm text-emerald-200"
+        : goalMessageType === "info"
+        ? "mt-6 rounded-2xl border border-cyan-400/30 bg-cyan-400/10 p-4 text-sm text-cyan-200"
+        : "mt-6 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200"
+    }
+  >
+    {goalMessage}
+  </div>
+)}
 
 <div className="mt-8 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/40">
   {/* Hero Top */}
@@ -1635,6 +1672,42 @@ const priorityStyle =
       </main>
 
       <Footer />
+
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="Delete this goal?"
+        message={
+          goal
+            ? `This will delete "${goal.name}" from your dashboard. This action cannot be undone from the app.`
+            : "This goal will be deleted from your dashboard."
+        }
+        confirmText="Yes, Delete"
+        cancelText="Cancel"
+        icon="!"
+        tone="danger"
+        isLoading={isDeletingGoal}
+        onCancel={() => setShowDeleteConfirm(false)}
+        onConfirm={confirmDeleteGoal}
+      />
+
+      <ConfirmModal
+        isOpen={Boolean(recoverRequest)}
+        title="Mark missed date as recovered?"
+        message={
+          recoverRequest
+            ? `This will remove ${new Date(
+                recoverRequest.missedDate
+              ).toLocaleDateString()} from missed dates. Use this only if you actually completed that work later.`
+            : "This missed date will be marked as recovered."
+        }
+        confirmText="Mark Recovered"
+        cancelText="Cancel"
+        icon="↻"
+        tone="info"
+        isLoading={isRecoveringMissedDate}
+        onCancel={() => setRecoverRequest(null)}
+        onConfirm={confirmRecoverMissedDate}
+      />
     </>
   );
 }

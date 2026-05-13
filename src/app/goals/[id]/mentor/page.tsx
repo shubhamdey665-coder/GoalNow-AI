@@ -11,6 +11,7 @@ import {
   updateGoalInSupabase,
 } from "@/lib/goals/supabaseGoals";
 import type { Goal } from "@/types/goal";
+import ConfirmModal from "@/components/ConfirmModal";
 
 type ChatMessage = {
   role: "user" | "mentor";
@@ -40,6 +41,8 @@ export default function MentorPage() {
   const [isLoadingGoal, setIsLoadingGoal] = useState(true);
   const [mentorError, setMentorError] = useState("");
   const [input, setInput] = useState("");
+  const [showClearChatConfirm, setShowClearChatConfirm] = useState(false);
+const [isClearingChat, setIsClearingChat] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     defaultMentorMessage,
   ]);
@@ -333,29 +336,37 @@ function getDisplayName() {
 }
 }
 
-  async function clearChat() {
-    if (!goal) return;
-
-    const confirmClear = window.confirm("Clear mentor chat history?");
-    if (!confirmClear) return;
-
-    const updatedGoal: Goal = {
-      ...goal,
-      mentorMessages: [getDefaultMentorMessage(userName)],
-      updatedAt: new Date().toISOString(),
-    };
-
-    try {
-  const savedGoal = await updateGoalInSupabase(updatedGoal);
-  setGoal(savedGoal);
-  setMessages([getDefaultMentorMessage(userName)]);
-  setMentorError("");
-} catch (error) {
-  setMentorError(
-    error instanceof Error ? error.message : "Could not clear mentor chat."
-  );
+ function clearChat() {
+  setShowClearChatConfirm(true);
 }
+
+async function confirmClearChat() {
+  if (!goal) return;
+
+  setIsClearingChat(true);
+  setMentorError("");
+
+  const defaultMessage = getDefaultMentorMessage(userName);
+
+  const updatedGoal: Goal = {
+    ...goal,
+    mentorMessages: [defaultMessage],
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    const savedGoal = await updateGoalInSupabase(updatedGoal);
+    setGoal(savedGoal);
+    setMessages([defaultMessage]);
+    setShowClearChatConfirm(false);
+  } catch (error) {
+    setMentorError(
+      error instanceof Error ? error.message : "Could not clear mentor chat."
+    );
+  } finally {
+    setIsClearingChat(false);
   }
+}
 if (isLoadingGoal) {
   return (
     <>
@@ -498,12 +509,13 @@ if (isLoadingGoal) {
               </div>
 
               <button
-                type="button"
-                onClick={clearChat}
-                className="w-fit rounded-2xl border border-red-400/30 bg-red-400/10 px-5 py-3 text-sm font-black text-red-200 transition hover:bg-red-400/20"
-              >
-                Clear Chat
-              </button>
+  type="button"
+  onClick={clearChat}
+  disabled={messages.length <= 1 || isClearingChat}
+  className="w-fit rounded-2xl border border-red-400/30 bg-red-400/10 px-5 py-3 text-sm font-black text-red-200 transition hover:bg-red-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+>
+  {isClearingChat ? "Clearing..." : "Clear Chat"}
+</button>
             </div>
           </div>
 
@@ -702,7 +714,20 @@ if (isLoadingGoal) {
       </section>
     </main>
 
-    <Footer />
+        <Footer />
+
+    <ConfirmModal
+      isOpen={showClearChatConfirm}
+      title="Clear mentor chat?"
+      message="This will remove your saved AI mentor conversation for this goal and restart the chat with the default mentor message."
+      confirmText="Yes, Clear"
+      cancelText="Cancel"
+      icon="🧹"
+      tone="danger"
+      isLoading={isClearingChat}
+      onCancel={() => setShowClearChatConfirm(false)}
+      onConfirm={confirmClearChat}
+    />
   </>
-);  
+);
 }

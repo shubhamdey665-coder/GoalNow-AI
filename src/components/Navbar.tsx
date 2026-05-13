@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import ConfirmModal from "@/components/ConfirmModal";
 
 type NavLink = {
   label: string;
@@ -439,50 +440,18 @@ export default function Navbar() {
       </nav>
 
       {/* Logout Modal */}
-      {showLogoutConfirm && (
-        <div className="modal-enter fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-4 text-white backdrop-blur-md">
-          <div className="modal-card w-full max-w-md overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950 shadow-2xl shadow-black">
-            <div className="relative p-6">
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[radial-gradient(circle_at_50%_0%,rgba(248,113,113,0.22),transparent_45%)]" />
-
-              <div className="relative">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-red-400/10 text-3xl shadow-lg shadow-red-500/10">
-                  ↪
-                </div>
-
-                <h2 className="mt-5 text-center text-2xl font-black">
-                  Logout from GoalNow-AI?
-                </h2>
-
-                <p className="mx-auto mt-3 max-w-sm text-center text-sm leading-6 text-slate-400">
-                  Your goals are saved with your account. You can login again
-                  anytime and continue your progress.
-                </p>
-
-                <div className="mt-6 grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowLogoutConfirm(false)}
-                    disabled={isLoggingOut}
-                    className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-black text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    disabled={isLoggingOut}
-                    className="danger-button rounded-2xl px-4 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isLoggingOut ? "Logging out..." : "Yes, Logout"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+  isOpen={showLogoutConfirm}
+  title="Logout from GoalNow-AI?"
+  message="Your goals are saved with your account. You can login again anytime and continue your progress."
+  confirmText="Yes, Logout"
+  cancelText="Cancel"
+  icon="↪"
+  tone="danger"
+  isLoading={isLoggingOut}
+  onCancel={() => setShowLogoutConfirm(false)}
+  onConfirm={handleLogout}
+/>
 
       <style jsx global>{`
         .animated-navbar-shell::before {
@@ -764,13 +733,7 @@ export default function Navbar() {
           color: white;
         }
 
-        .modal-enter {
-          animation: modalFade 0.25s ease both;
-        }
-
-        .modal-card {
-          animation: modalPop 0.32s cubic-bezier(0.2, 0.9, 0.2, 1.1) both;
-        }
+        
 
         @keyframes navbarBorderFlow {
           0% {
@@ -900,44 +863,24 @@ export default function Navbar() {
           }
         }
 
-        @keyframes modalFade {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        @keyframes modalPop {
-          from {
-            opacity: 0;
-            transform: translateY(18px) scale(0.94);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
+        
 
         @media (prefers-reduced-motion: reduce) {
-          .animated-navbar-shell::before,
-          .navbar-aurora-line,
-          .navbar-shine,
-          .brand-text,
-          .logo-orbit::before,
-          .nav-pill-active::after,
-          .nav-icon,
-          .nav-icon-active,
-          .avatar-glow,
-          .cta-button::after,
-          .mobile-menu-enter,
-          .mobile-link,
-          .modal-enter,
-          .modal-card {
-            animation: none !important;
-          }
-        }
+  .animated-navbar-shell::before,
+  .navbar-aurora-line,
+  .navbar-shine,
+  .brand-text,
+  .logo-orbit::before,
+  .nav-pill-active::after,
+  .nav-icon,
+  .nav-icon-active,
+  .avatar-glow,
+  .cta-button::after,
+  .mobile-menu-enter,
+  .mobile-link {
+    animation: none !important;
+  }
+}
       `}</style>
     </>
   );

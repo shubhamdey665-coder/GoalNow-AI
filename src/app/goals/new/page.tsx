@@ -5,6 +5,7 @@ import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import { useRouter } from "next/navigation";
 import Footer from "@/components/Footer";
+import ConfirmModal from "@/components/ConfirmModal";
 import {
   createGoalInSupabase,
   getGoalsFromSupabase,
@@ -25,6 +26,7 @@ export default function NewGoalPage() {
   const [targetDate, setTargetDate] = useState("");
   const [dailyTime, setDailyTime] = useState("");
   const [currentLevel, setCurrentLevel] = useState("");
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [targetResult, setTargetResult] = useState("");
   const [message, setMessage] = useState("");
   const [plan, setPlan] = useState<string[]>([]);
@@ -137,6 +139,14 @@ export default function NewGoalPage() {
     setNormalTarget("");
     setNormalFrequency("daily");
       }
+      function askResetForm() {
+  setShowResetConfirm(true);
+}
+
+function confirmResetForm() {
+  resetForm();
+  setShowResetConfirm(false);
+}
   function validateGoalForm() {
     if (!goalName.trim()) {
       return "Please enter a goal name.";
@@ -445,13 +455,13 @@ return (
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={resetForm}
-              className="w-fit rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/20"
-            >
-              Reset Form
-            </button>
+           <button
+  type="button"
+  onClick={askResetForm}
+  className="w-fit rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/20"
+>
+  Reset Form
+</button>
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -880,13 +890,13 @@ return (
                     : "Generate AI Tracker"}
                 </button>
 
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 font-bold text-white transition hover:bg-white/20"
-                >
-                  Reset Form
-                </button>
+               <button
+  type="button"
+  onClick={askResetForm}
+  className="rounded-2xl border border-white/10 bg-white/10 px-5 py-4 font-bold text-white transition hover:bg-white/20"
+>
+  Reset Form
+</button>
               </div>
 
               {message && (
@@ -988,7 +998,20 @@ return (
       </section>
     </main>
 
-    <Footer />
+     <Footer />
+
+    <ConfirmModal
+      isOpen={showResetConfirm}
+      title="Reset this form?"
+      message="This will clear your current goal name, tracker type, target date, plan preview, and all form details. Use this only if you want to start again."
+      confirmText="Yes, Reset"
+      cancelText="Cancel"
+      icon="↻"
+      tone="danger"
+      isLoading={false}
+      onCancel={() => setShowResetConfirm(false)}
+      onConfirm={confirmResetForm}
+    />
   </>
 );
 }

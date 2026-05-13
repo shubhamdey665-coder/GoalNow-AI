@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import ConfirmModal from "@/components/ConfirmModal";
 import {
   getGoalByIdFromSupabase,
   getGoalsFromSupabase,
@@ -60,6 +61,7 @@ export default function EditGoalPage() {
   const [duration, setDuration] = useState("7 Days");
   const [priority, setPriority] = useState("Medium");
   const [targetDate, setTargetDate] = useState("");
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
   const [dailyTime, setDailyTime] = useState("");
   const [currentLevel, setCurrentLevel] = useState("");
@@ -140,7 +142,7 @@ export default function EditGoalPage() {
     return selectedDate <= today;
   }
 
-  async function saveChanges() {
+  async function validateBeforeSave() {
     setHasTriedToSave(true);
     if (!goal) return;
 
@@ -198,45 +200,53 @@ export default function EditGoalPage() {
       setMessage("Another goal with this name already exists.");
       return;
     }
+   
 
-    const updatedGoal: Goal = {
-      ...goal,
-
-      name: name.trim(),
-      category,
-      duration,
-      priority,
-      targetDate,
-
-      dailyTime: goal.trackerType === "complex" ? dailyTime : goal.dailyTime,
-      currentLevel:
-        goal.trackerType === "complex" ? currentLevel : goal.currentLevel,
-      targetResult:
-        goal.trackerType === "complex" ? targetResult : goal.targetResult,
-
-      normalTarget:
-        goal.trackerType === "normal" ? normalTarget : goal.normalTarget,
-      normalFrequency:
-        goal.trackerType === "normal" ? normalFrequency : goal.normalFrequency,
-
-      updatedAt: new Date().toISOString(),
-    };
-
-    setIsSaving(true);
-    setMessage("");
-
-    try {
-      const savedGoal = await updateGoalInSupabase(updatedGoal);
-      router.push(`/goals/${savedGoal.id}`);
-      router.refresh();
-    } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Could not save your changes."
-      );
-    } finally {
-      setIsSaving(false);
-    }
+   setMessage("");
+setShowSaveConfirm(true);
   }
+  async function confirmSaveChanges() {
+  if (!goal) return;
+
+  const updatedGoal: Goal = {
+    ...goal,
+
+    name: name.trim(),
+    category,
+    duration,
+    priority,
+    targetDate,
+
+    dailyTime: goal.trackerType === "complex" ? dailyTime : goal.dailyTime,
+    currentLevel:
+      goal.trackerType === "complex" ? currentLevel : goal.currentLevel,
+    targetResult:
+      goal.trackerType === "complex" ? targetResult : goal.targetResult,
+
+    normalTarget:
+      goal.trackerType === "normal" ? normalTarget : goal.normalTarget,
+    normalFrequency:
+      goal.trackerType === "normal" ? normalFrequency : goal.normalFrequency,
+
+    updatedAt: new Date().toISOString(),
+  };
+
+  setIsSaving(true);
+  setMessage("");
+
+  try {
+    const savedGoal = await updateGoalInSupabase(updatedGoal);
+    setShowSaveConfirm(false);
+    router.push(`/goals/${savedGoal.id}`);
+    router.refresh();
+  } catch (error) {
+    setMessage(
+      error instanceof Error ? error.message : "Could not save your changes."
+    );
+  } finally {
+    setIsSaving(false);
+  }
+}
 
   if (isLoadingGoal) {
     return (
@@ -722,14 +732,14 @@ export default function EditGoalPage() {
                       Cancel
                     </Link>
 
-                    <button
-                      type="button"
-                      onClick={saveChanges}
-                      disabled={isSaving}
-                      className="rounded-2xl bg-white px-6 py-3 text-sm font-black text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isSaving ? "Saving changes..." : "Save Changes"}
-                    </button>
+                   <button
+  type="button"
+  onClick={validateBeforeSave}
+  disabled={isSaving}
+  className="rounded-2xl bg-white px-6 py-3 text-sm font-black text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-60"
+>
+  {isSaving ? "Saving changes..." : "Save Changes"}
+</button>
                   </div>
                 </form>
               </section>
@@ -739,6 +749,19 @@ export default function EditGoalPage() {
       </main>
 
       <Footer />
+
+      <ConfirmModal
+        isOpen={showSaveConfirm}
+        title="Save goal changes?"
+        message="Your goal details will be updated. Your tracker type and saved progress will stay protected."
+        confirmText="Yes, Save"
+        cancelText="Cancel"
+        icon="✓"
+        tone="success"
+        isLoading={isSaving}
+        onCancel={() => setShowSaveConfirm(false)}
+        onConfirm={confirmSaveChanges}
+      />
     </>
   );
 }

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import ConfirmModal from "@/components/ConfirmModal";
 import {
   getGoalByIdFromSupabase,
   updateGoalInSupabase,
@@ -433,6 +434,9 @@ export default function TestPage() {
   const [testSource, setTestSource] = useState<"gemini" | "fallback">(
     "fallback"
   );
+  const [showBackToSetupConfirm, setShowBackToSetupConfirm] = useState(false);
+const [showDiscardTestConfirm, setShowDiscardTestConfirm] = useState(false);
+const [showStartAnotherConfirm, setShowStartAnotherConfirm] = useState(false);
   const [testStarted, setTestStarted] = useState(false);
   const [questionType, setQuestionType] = useState<"mcq" | "saq">("mcq");
   const [questionCount, setQuestionCount] = useState<5 | 10 | 20>(5);
@@ -687,6 +691,32 @@ export default function TestPage() {
     setUnfinishedTest(null);
     setTestError("");
   }
+  function askBackToSetup() {
+  setShowBackToSetupConfirm(true);
+}
+
+function confirmBackToSetup() {
+  resetToSetup();
+  setShowBackToSetupConfirm(false);
+}
+
+function askDiscardUnfinishedTest() {
+  setShowDiscardTestConfirm(true);
+}
+
+function confirmDiscardUnfinishedTest() {
+  discardUnfinishedTest();
+  setShowDiscardTestConfirm(false);
+}
+
+function askStartAnotherTest() {
+  setShowStartAnotherConfirm(true);
+}
+
+function confirmStartAnotherTest() {
+  resetToSetup();
+  setShowStartAnotherConfirm(false);
+}
 
   async function submitTest() {
     if (!goal) return;
@@ -1104,13 +1134,13 @@ export default function TestPage() {
                         Resume Test
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={discardUnfinishedTest}
-                        className="rounded-2xl border border-yellow-300/30 bg-black/20 px-4 py-3 font-bold text-yellow-100 transition hover:bg-black/30"
-                      >
-                        Discard
-                      </button>
+                     <button
+  type="button"
+  onClick={askDiscardUnfinishedTest}
+  className="rounded-2xl border border-yellow-300/30 bg-black/20 px-4 py-3 font-bold text-yellow-100 transition hover:bg-black/30"
+>
+  Discard
+</button>
                     </div>
                   </section>
                 )}
@@ -1185,12 +1215,12 @@ export default function TestPage() {
 
                   {!testCompleted && (
                     <button
-                      type="button"
-                      onClick={resetToSetup}
-                      className="mt-5 w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/20"
-                    >
-                      Back to Setup
-                    </button>
+  type="button"
+  onClick={askBackToSetup}
+  className="mt-5 w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/20"
+>
+  Back to Setup
+</button>
                   )}
                 </section>
 
@@ -1370,13 +1400,13 @@ export default function TestPage() {
                       </p>
                       <p className="mt-3 leading-7">{result}</p>
 
-                      <button
-                        type="button"
-                        onClick={resetToSetup}
-                        className="mt-5 rounded-2xl border border-blue-300/30 bg-blue-300/10 px-4 py-3 text-sm font-bold text-blue-100 transition hover:bg-blue-300/20"
-                      >
-                        Start Another Test
-                      </button>
+                     <button
+  type="button"
+  onClick={askStartAnotherTest}
+  className="mt-5 rounded-2xl border border-blue-300/30 bg-blue-300/10 px-4 py-3 text-sm font-bold text-blue-100 transition hover:bg-blue-300/20"
+>
+  Start Another Test
+</button>
                     </div>
                   )}
                 </div>
@@ -1386,7 +1416,46 @@ export default function TestPage() {
         </section>
       </main>
 
-      <Footer />
+         <Footer />
+
+      <ConfirmModal
+        isOpen={showBackToSetupConfirm}
+        title="Go back to test setup?"
+        message="Your current weekly test answers will be cleared from this screen. Use this only if you want to change test type or question count."
+        confirmText="Yes, Go Back"
+        cancelText="Cancel"
+        icon="↩"
+        tone="info"
+        isLoading={false}
+        onCancel={() => setShowBackToSetupConfirm(false)}
+        onConfirm={confirmBackToSetup}
+      />
+
+      <ConfirmModal
+        isOpen={showDiscardTestConfirm}
+        title="Discard unfinished test?"
+        message="This will remove the saved unfinished test from this device. You will need to start a new weekly test again."
+        confirmText="Yes, Discard"
+        cancelText="Cancel"
+        icon="!"
+        tone="danger"
+        isLoading={false}
+        onCancel={() => setShowDiscardTestConfirm(false)}
+        onConfirm={confirmDiscardUnfinishedTest}
+      />
+
+      <ConfirmModal
+        isOpen={showStartAnotherConfirm}
+        title="Start another weekly test?"
+        message="This will clear the current submitted result view and return you to the test setup screen. Your latest saved test result will remain saved in your goal."
+        confirmText="Start Another"
+        cancelText="Cancel"
+        icon="↻"
+        tone="info"
+        isLoading={false}
+        onCancel={() => setShowStartAnotherConfirm(false)}
+        onConfirm={confirmStartAnotherTest}
+      />
     </>
   );
 }

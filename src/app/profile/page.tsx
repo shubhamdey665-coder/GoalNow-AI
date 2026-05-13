@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { createClient } from "@/lib/supabase/client";
+import ConfirmModal from "@/components/ConfirmModal";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -14,7 +15,9 @@ export default function ProfilePage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-
+  const [showProfileSaveConfirm, setShowProfileSaveConfirm] = useState(false);
+const [showPasswordSaveConfirm, setShowPasswordSaveConfirm] = useState(false);
+const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [primaryGoal, setPrimaryGoal] = useState("Coding / Software Job");
@@ -65,99 +68,120 @@ export default function ProfilePage() {
     loadUser();
   }, [router]);
 
-  async function handleUpdateProfile(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function handleUpdateProfile(event: FormEvent<HTMLFormElement>) {
+  event.preventDefault();
 
-    setSuccessMessage("");
-    setErrorMessage("");
+  setSuccessMessage("");
+  setErrorMessage("");
 
-    if (fullName.trim().length < 3) {
-      setErrorMessage("Name must be at least 3 characters.");
-      return;
-    }
-
-    setSavingProfile(true);
-
-    const supabase = createClient();
-
-    const { error } = await supabase.auth.updateUser({
-      data: {
-        full_name: fullName.trim(),
-        name: fullName.trim(),
-        primary_goal: primaryGoal,
-        current_level: currentLevel,
-        daily_time: dailyTime,
-      },
-    });
-
-    setSavingProfile(false);
-
-    if (error) {
-      setErrorMessage(error.message);
-      return;
-    }
-
-    setSuccessMessage("Profile updated successfully.");
-    router.refresh();
+  if (fullName.trim().length < 3) {
+    setErrorMessage("Name must be at least 3 characters.");
+    return;
   }
 
-  async function handleUpdatePassword(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  setShowProfileSaveConfirm(true);
+}
 
-    setSuccessMessage("");
-    setErrorMessage("");
+async function confirmUpdateProfile() {
+  setSavingProfile(true);
+  setSuccessMessage("");
+  setErrorMessage("");
 
-    if (newPassword.length < 6) {
-      setErrorMessage("Password must be at least 6 characters.");
-      return;
-    }
+  const supabase = createClient();
 
-    if (newPassword !== confirmPassword) {
-      setErrorMessage("New password and confirm password do not match.");
-      return;
-    }
+  const { error } = await supabase.auth.updateUser({
+    data: {
+      full_name: fullName.trim(),
+      name: fullName.trim(),
+      primary_goal: primaryGoal,
+      current_level: currentLevel,
+      daily_time: dailyTime,
+    },
+  });
 
-    setSavingPassword(true);
+  setSavingProfile(false);
 
-    const supabase = createClient();
-
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
-
-    setSavingPassword(false);
-
-    if (error) {
-      setErrorMessage(error.message);
-      return;
-    }
-
-    setNewPassword("");
-    setConfirmPassword("");
-    setSuccessMessage("Password updated successfully.");
+  if (error) {
+    setErrorMessage(error.message);
+    return;
   }
 
-  async function handleLogout() {
-    const confirmLogout = window.confirm("Are you sure you want to logout?");
+  setShowProfileSaveConfirm(false);
+  setSuccessMessage("Profile updated successfully.");
+  router.refresh();
+}
 
-if (!confirmLogout) return;
-    setLoggingOut(true);
-    setErrorMessage("");
+  function handleUpdatePassword(event: FormEvent<HTMLFormElement>) {
+  event.preventDefault();
 
-    const supabase = createClient();
+  setSuccessMessage("");
+  setErrorMessage("");
 
-    const { error } = await supabase.auth.signOut();
-
-    setLoggingOut(false);
-
-    if (error) {
-      setErrorMessage(error.message);
-      return;
-    }
-
-    router.push("/login");
-    router.refresh();
+  if (newPassword.length < 6) {
+    setErrorMessage("Password must be at least 6 characters.");
+    return;
   }
+
+  if (newPassword !== confirmPassword) {
+    setErrorMessage("New password and confirm password do not match.");
+    return;
+  }
+
+  setShowPasswordSaveConfirm(true);
+}
+
+async function confirmUpdatePassword() {
+  setSavingPassword(true);
+  setSuccessMessage("");
+  setErrorMessage("");
+
+  const supabase = createClient();
+
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+
+  setSavingPassword(false);
+
+  if (error) {
+    setErrorMessage(error.message);
+    return;
+  }
+
+  setShowPasswordSaveConfirm(false);
+  setNewPassword("");
+  setConfirmPassword("");
+  setSuccessMessage("Password updated successfully.");
+}
+
+ function handleLogout() {
+  setShowLogoutConfirm(true);
+}
+
+async function confirmLogout() {
+  setLoggingOut(true);
+  setErrorMessage("");
+  setSuccessMessage("");
+
+  const supabase = createClient();
+
+  const { error } = await supabase.auth.signOut();
+
+  setLoggingOut(false);
+
+  if (error) {
+    setErrorMessage(error.message);
+    return;
+  }
+
+  setShowLogoutConfirm(false);
+  router.push("/login");
+  router.refresh();
+}
+const passwordMismatch =
+  newPassword.length > 0 &&
+  confirmPassword.length > 0 &&
+  newPassword !== confirmPassword;
 
   const firstLetter =
     fullName.trim().charAt(0).toUpperCase() ||
@@ -508,15 +532,22 @@ if (!confirmLogout) return;
                         Confirm Password
                       </label>
 
-                      <input
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(event) =>
-                          setConfirmPassword(event.target.value)
-                        }
-                        placeholder="Repeat new password"
-                        className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-purple-400"
-                      />
+                     <input
+  type="password"
+  value={confirmPassword}
+  onChange={(event) => setConfirmPassword(event.target.value)}
+  placeholder="Repeat new password"
+  className={
+    passwordMismatch
+      ? "mt-2 w-full rounded-2xl border border-red-400 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-red-400"
+      : "mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-600 focus:border-purple-400"
+  }
+/>
+{passwordMismatch && (
+  <p className="mt-2 rounded-2xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm font-semibold text-red-200">
+    New password and confirm password do not match.
+  </p>
+)}
                     </div>
                   </div>
 
@@ -534,7 +565,46 @@ if (!confirmLogout) return;
         </section>
       </main>
 
-      <Footer />
+           <Footer />
+
+      <ConfirmModal
+        isOpen={showProfileSaveConfirm}
+        title="Save profile changes?"
+        message="Your name, primary goal, current level, and daily available time will be updated for your GoalNow-AI account."
+        confirmText="Yes, Save"
+        cancelText="Cancel"
+        icon="✓"
+        tone="success"
+        isLoading={savingProfile}
+        onCancel={() => setShowProfileSaveConfirm(false)}
+        onConfirm={confirmUpdateProfile}
+      />
+
+      <ConfirmModal
+        isOpen={showPasswordSaveConfirm}
+        title="Update your password?"
+        message="Your account password will be changed. Use your new password the next time you log in."
+        confirmText="Update Password"
+        cancelText="Cancel"
+        icon="🔒"
+        tone="info"
+        isLoading={savingPassword}
+        onCancel={() => setShowPasswordSaveConfirm(false)}
+        onConfirm={confirmUpdatePassword}
+      />
+
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        title="Logout from GoalNow-AI?"
+        message="Your goals are saved with your account. You can log in again anytime and continue your progress."
+        confirmText="Yes, Logout"
+        cancelText="Cancel"
+        icon="↪"
+        tone="danger"
+        isLoading={loggingOut}
+        onCancel={() => setShowLogoutConfirm(false)}
+        onConfirm={confirmLogout}
+      />
     </>
   );
 }
