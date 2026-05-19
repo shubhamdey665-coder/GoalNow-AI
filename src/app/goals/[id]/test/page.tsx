@@ -524,7 +524,11 @@ const [showStartAnotherConfirm, setShowStartAnotherConfirm] = useState(false);
       JSON.stringify(unfinished)
     );
 
-    setUnfinishedTest(unfinished);
+const timeout = window.setTimeout(() => {
+  setUnfinishedTest(unfinished);
+}, 0);
+
+return () => window.clearTimeout(timeout);
   }, [goal, testStarted, result, questions, answers, questionType, questionCount]);
 
   function getComplexProgress(currentGoal: Goal) {

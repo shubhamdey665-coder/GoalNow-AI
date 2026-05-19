@@ -56,8 +56,8 @@ export default function NewGoalPage() {
   const progressPercentage =
   plan.length === 0 ? 0 : Math.round((completedTasks.length / plan.length) * 100);
 
-  function useGoalTemplate(templateName: string) {
-      const templateDuration = "1 Year";
+function applyGoalTemplate(templateName: string) {
+  const templateDuration = "1 Year";
       const targetDateFromDuration = new Date();
       targetDateFromDuration.setDate(
         targetDateFromDuration.getDate() + getPlanDayCount(templateDuration)
@@ -392,7 +392,9 @@ if (trackerType === "complex" && complexPlanDays) {
       setCompletedTasks([...completedTasks, index]);
     }
   }
-
+const tomorrowDate = new Date();
+tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+const minTargetDate = tomorrowDate.toISOString().split("T")[0];
 return (
   <>
     <Navbar />
@@ -503,7 +505,7 @@ return (
               <button
                 key={template.id}
                 type="button"
-                onClick={() => useGoalTemplate(template.id)}
+                onClick={() => applyGoalTemplate(template.id)}
                 className={`rounded-2xl border p-4 text-left transition hover:-translate-y-1 ${template.style}`}
               >
                 <span className="text-2xl">{template.icon}</span>
@@ -753,9 +755,7 @@ return (
                   <input
                     type="date"
                     value={targetDate}
-                    min={new Date(Date.now() + 86400000)
-                      .toISOString()
-                      .split("T")[0]}
+                    min={minTargetDate}
                     onChange={(event) => setTargetDate(event.target.value)}
                     className={
                       targetDateError

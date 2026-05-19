@@ -1,3 +1,4 @@
+import Link from "next/link";
 export default function Footer() {
   return (
     <footer className="border-t border-white/10 bg-slate-950 px-6 py-10 text-slate-300">
@@ -20,24 +21,24 @@ export default function Footer() {
       </h3>
       <ul className="mt-4 space-y-3 text-sm text-slate-400">
         <li>
-          <a href="/dashboard" className="transition hover:text-white">
+          <Link href="/dashboard" className="transition hover:text-white">
             Dashboard
-          </a>
+          </Link>
         </li>
         <li>
-          <a href="/goals/new" className="transition hover:text-white">
+          <Link href="/goals/new" className="transition hover:text-white">
             Create Goal
-          </a>
+          </Link>
         </li>
         <li>
-          <a href="/dashboard" className="transition hover:text-white">
+          <Link href="/dashboard" className="transition hover:text-white">
             Daily Tracker
-          </a>
+          </Link>
         </li>
         <li>
-          <a href="/dashboard" className="transition hover:text-white">
+          <Link href="/dashboard" className="transition hover:text-white">
             Progress Report
-          </a>
+          </Link>
         </li>
       </ul>
     </div>
@@ -49,24 +50,24 @@ export default function Footer() {
       </h3>
       <ul className="mt-4 space-y-3 text-sm text-slate-400">
         <li>
-          <a href="/dashboard" className="transition hover:text-white">
+          <Link href="/dashboard" className="transition hover:text-white">
             AI Roadmap
-          </a>
+          </Link>
         </li>
         <li>
-          <a href="/dashboard" className="transition hover:text-white">
+          <Link href="/dashboard" className="transition hover:text-white">
             AI Mentor
-          </a>
+          </Link>
         </li>
         <li>
-          <a href="/dashboard" className="transition hover:text-white">
+          <Link href="/dashboard" className="transition hover:text-white">
             Weekly Test
-          </a>
+          </Link>
         </li>
         <li>
-          <a href="/dashboard" className="transition hover:text-white">
+          <Link href="/dashboard" className="transition hover:text-white">
             Goal Analytics
-          </a>
+          </Link>
         </li>
       </ul>
     </div>
@@ -78,14 +79,14 @@ export default function Footer() {
       </h3>
       <ul className="mt-4 space-y-3 text-sm text-slate-400">
         <li>
-          <a href="/" className="transition hover:text-white">
+          <Link href="/" className="transition hover:text-white">
             Home
-          </a>
+          </Link>
         </li>
         <li>
-          <a href="/dashboard" className="transition hover:text-white">
+          <Link href="/dashboard" className="transition hover:text-white">
             Get Started
-          </a>
+          </Link>
         </li>
         <li>
           <a href="mailto:shubhamdey665@gmail.com" className="transition hover:text-white">
@@ -93,9 +94,9 @@ export default function Footer() {
           </a>
         </li>
         <li>
-          <a href="/" className="transition hover:text-white">
+          <Link href="/" className="transition hover:text-white">
             About GoalNow-AI
-          </a>
+          </Link>
         </li>
       </ul>
     </div>
@@ -109,15 +110,15 @@ export default function Footer() {
     </p>
 
     <div className="flex items-center gap-5">
-      <a href="/" className="transition hover:text-white">
+      <Link href="/" className="transition hover:text-white">
         Privacy Policy
-      </a>
-      <a href="/" className="transition hover:text-white">
+      </Link>
+      <Link href="/" className="transition hover:text-white">
         Terms
-      </a>
-      <a href="/" className="transition hover:text-white">
+      </Link>
+      <Link href="/" className="transition hover:text-white">
         Security
-      </a>
+      </Link>
     </div>
   </div>
 </footer>

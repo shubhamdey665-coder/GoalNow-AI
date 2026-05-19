@@ -55,21 +55,9 @@ function getDateRange(startDate: string, endDate: string) {
   return dates;
 }
 
-function getReadableDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString();
-}
 
-function getRecentDates(totalDays: number) {
-  const dates: string[] = [];
 
-  for (let index = totalDays - 1; index >= 0; index--) {
-    const date = new Date();
-    date.setDate(date.getDate() - index);
-    dates.push(date.toISOString().split("T")[0]);
-  }
 
-  return dates;
-}
 function getMonthCalendarDays(calendarDate: Date) {
   const year = calendarDate.getFullYear();
   const month = calendarDate.getMonth();
@@ -100,13 +88,7 @@ function getMonthTitle(calendarDate: Date) {
   });
 }
 
-function GoalPageFooter() {
-  return (
-    <footer className="border-t border-white/10 bg-black px-6 py-5 text-center text-xs text-zinc-500">
-      © 2026 Powered by <span className="font-semibold text-zinc-300">GoalNow-AI</span>
-    </footer>
-  );
-}
+
 
 function normalizeComplexGoalDates(goal: Goal) {
   if (goal.trackerType !== "complex" || !goal.complexPlanDays) {
@@ -1361,7 +1343,7 @@ const priorityStyle =
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
-        <p className="text-xs text-zinc-400">Today's own work</p>
+        <p className="text-xs text-zinc-400">Today&apos;s own work</p>
         <h3 className="mt-1 text-2xl font-black text-emerald-300">
           {todaySmartProgress.ownTaskCount}
         </h3>

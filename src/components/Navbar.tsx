@@ -108,10 +108,13 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
+  const timeout = window.setTimeout(() => {
     setIsMobileMenuOpen(false);
     setShowLogoutConfirm(false);
-  }, [pathname]);
+  }, 0);
 
+  return () => window.clearTimeout(timeout);
+}, [pathname]);
   async function handleLogout() {
     setIsLoggingOut(true);
 
